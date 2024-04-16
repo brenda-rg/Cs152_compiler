@@ -1305,7 +1305,7 @@ fn lex_ir_token(mut code: &str) -> (Option<IRTok>, &str) {
 
 #[cfg(test)]
 mod ir_tests {
-    use crate::interpeter::*;
+    use crate::interpreter::*;
 
     #[test]
     fn ir_token() {
