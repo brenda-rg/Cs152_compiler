@@ -198,7 +198,7 @@ fn lex(mut code: &str) -> Result<Vec<Token>, String> {
 }
 
 // lex numbers.
-fn lex_number(code: &str) -> (bool, Token, &str) {///////////////
+fn lex_number(code: &str) -> (bool, Token, &str) {
     enum StateMachine {
     Start,
     Number,
@@ -241,7 +241,7 @@ fn lex_number(code: &str) -> (bool, Token, &str) {///////////////
 }
 
 // lex identifiers.
-fn lex_identifier(code: &str) -> (bool, Token, &str) {////////////////
+fn lex_identifier(code: &str) -> (bool, Token, &str) {
     enum StateMachine {
       Start,
       Ident,
