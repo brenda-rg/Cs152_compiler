@@ -410,6 +410,9 @@ fn lex_equality(code: &str) -> (bool, Token, &str) {
         index += 1;
       } else {
         let token = &code[..index];
+        if token == "!" {
+          return (false, Token::NotToken, "");
+        }
         return (true, create_sign(token), &code[index..]);
       }
     }
