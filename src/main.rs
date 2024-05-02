@@ -41,14 +41,14 @@ fn main() {
             return;
         }
     
-        Ok(data) => data,
+        Ok(tokens) => tokens,
         
         };
     
     
         // print out the lexer tokens parsed.
     
-        println!("----------------------");
+        /* println!("----------------------");
         println!("Finished Lexing the file {}", filename);
         println!("Expression:");
         println!("{code}");
@@ -56,9 +56,26 @@ fn main() {
         println!("----------------------");
         for t in &tokens { //make sure '&' here because rust not gonna work
           println!("{:?}", t);
+        } */
+
+        let mut index: usize = 0;
+        match parse_program(&tokens, &mut index) {
+          Ok(()) => {
+            println!("Program Parsed Successfully.");
+          }
+          Err(message) => {
+            println!("**Error**");
+            println!("----------------------");
+            if tokens.len() == 0 {
+                println!("No code has been provided.");
+            } else {
+                println!("Error: {message}");
+                println!("----------------------");
+            }
+          }
+
         }
-    
-    }
+}
     
     // Creating an Enum within Rust.
     // Documentation: https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html
@@ -266,14 +283,14 @@ fn lex_comment(code: &str) -> (bool, &str) {
     for letter in code.chars() {
       match state {
       StateMachine::Start => {
-      if letter == '#' {
-        state = StateMachine::Filter;
-        success = true;
-        index += 1;
-      }
-      else {
-        return(false, code);
-      }
+        if letter == '#' {
+          state = StateMachine::Filter;
+          success = true;
+          index += 1;
+        }
+        else {
+          return(false, code);
+        }
       }
       StateMachine::Filter => {
         if letter != '\n' {
@@ -287,7 +304,11 @@ fn lex_comment(code: &str) -> (bool, &str) {
       }
       }
     }
-    return(false, code);
+    if success == true {
+      return (true, &code[index..]);
+    } else {
+      return (false, "");
+    }
 }
 
 // lex numbers.
@@ -490,13 +511,314 @@ fn create_sign(code: &str) -> Token {
   }
 }
 
+fn peek<'a>(tokens: &'a Vec<Token>, index: usize) -> Option<&'a Token> {
+  if index < tokens.len() {
+      return Some(&tokens[index])
+  } else {
+      return None
+  }
+}
+
+fn peek_result<'a>(tokens: &'a Vec<Token>, index: usize) -> Result<&'a Token, String> {
+  if index < tokens.len() {
+      return Ok(&tokens[index])
+  } else {
+      return Err(String::from("expected a token, but got nothing"))
+  }
+}
+
+fn next<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> Option<&'a Token> {
+  if *index < tokens.len() {
+      let ret = *index;
+      *index += 1;
+      return Some(&tokens[ret])
+  } else {
+      return None
+  }
+}
+
+fn next_result<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> Result<&'a Token, String> {
+  if *index < tokens.len() {
+      let ret = *index;
+      *index += 1;
+      return Ok(&tokens[ret])
+  } else {
+      return Err(String::from("expected a token, but got nothing"))
+  }
+}
+
+fn parse_program(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
+  loop {
+      match parse_function(tokens, index)? {
+      None => {
+          break;
+      }
+      Some(_) => {}
+      }
+  }
+
+  return Ok(());
+}
+
+fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+    
+  match next(tokens, index) {
+  None => {
+      return Ok(None);
+  }
+  Some(token) => {
+      if !matches!(token, Token::Func) {
+          return Err(String::from("functions must begin with func"));
+      }
+  }
+
+  }
+  match next_result(tokens, index)? {
+  Token::Ident(_) => {},
+  _  => {return Err(String::from("functions must have a function identifier"));}
+  };
+
+  if !matches!( next_result(tokens, index)?, Token::LeftParen) {
+      return Err(String::from("expected '('"));
+  }
+
+  loop {
+     match next_result(tokens, index)? {
+
+     Token::RightParen => {
+         break;
+     }
+
+     Token::Int => {
+         match next_result(tokens, index)? {
+         Token::Ident(_) => {
+             match peek_result(tokens, *index)? {
+             Token::Comma => {
+                 *index += 1;
+             }
+             Token::RightParen => {}
+             _ => {
+                 return Err(String::from("expected ',' or ')'"));
+             }
+
+             }
+         }
+         _ => {
+              return Err(String::from("expected ident function parameter"));
+         }
+
+         }
+     }
+
+     _ => {
+         return Err(String::from("expected 'int' keyword or ')' token"));
+     }
+
+     }
+  }
+
+
+  if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
+      return Err(String::from("expected '{'"));
+  }
+
+  loop {
+      match parse_statement(tokens, index)? {
+      None => {
+          break;
+      }
+      Some(()) => {}
+      }
+  }
+
+
+  if !matches!(next_result(tokens, index)?, Token::RightCurly) {
+    return Err(String::from("expected '}'"));
+  }
+
+  return Ok(Some(()));
+}
+
+
+fn parse_declaration(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+  match next(tokens, index) {
+    None => {
+        return Ok(None);
+    }
+    Some(token) => {
+        if !matches!(token, Token::Int) {
+            return Err(String::from("functions must begin with int"));
+        }
+    }
+    }
+    // check for int in declaration. Next check '[' or Ident
+    match peek(tokens, *index) {
+    None => {
+      return Ok(None);
+    }
+    Some(token) => {
+        match token {
+
+        Token::LeftBracket => {
+            *index += 1;
+            match next_result(tokens, index)? {
+              Token::Num(_) => {}
+              _ => {
+                return Err(String::from("expected number"));
+              }
+            }
+            match next(tokens, index) {
+              None => {
+                    return Ok(None);
+              }
+              Some(token) => {
+                    if !matches!(token, Token::RightBracket) {
+                        return Err(String::from("expected ']'"));
+                    }
+                    *index += 1;
+                    match next_result(tokens, index)? {
+                      Token::Ident(_) => { }
+            
+                      _ => {return Err(String::from("expected identifier"));}
+            
+                      }
+                  }
+              }
+            }
+
+        Token::Ident(_) => {}
+
+        _  => {return Err(String::from("expected identifier or '['"));}
+        
+        }
+        return Ok(Some(()));
+    }
+}
+}
+
+fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+  match peek(tokens, *index) {
+  None => {
+      return Ok(None);
+  }
+
+  Some(token) => {
+      match token {
+
+      Token::RightCurly => {
+          return Ok(None);
+      }
+
+      Token::Int => {
+          *index += 1;
+          match next_result(tokens, index)? {
+          Token::Ident(_) => {}
+
+          _ => {
+              return Err(String::from("expected identifier"));
+          }
+
+          }
+      }
+
+      Token::Ident(_) => {
+          *index += 1;
+          if !matches!(next_result(tokens, index)?, Token::Assign) {
+              return Err(String::from("expected '=' assignment operator"));
+          }
+          parse_expression(tokens, index)?;
+      }
+
+      Token::Return => {
+          *index += 1;
+          parse_expression(tokens, index)?;
+      }
+
+      Token::Print => {
+          *index += 1;
+          if !matches!(next_result(tokens, index)?, Token::LeftParen) {
+              return Err(String::from("expect '(' closing statement"));
+          }
+          parse_expression(tokens, index)?;
+          if !matches!(next_result(tokens, index)?, Token::RightParen) {
+              return Err(String::from("expect ')' closing statement"));
+          }
+      }
+
+      Token::Read => {
+          *index += 1;
+          if !matches!(next_result(tokens, index)?, Token::LeftParen) {
+              return Err(String::from("expect '(' closing statement"));
+          }
+
+          parse_expression(tokens, index)?;
+
+          if !matches!(next_result(tokens, index)?, Token::RightParen) {
+              return Err(String::from("expect ')' closing statement"));
+          }
+      }
+
+      _ => {
+           return Err(String::from("invalid statement."));
+      }
+
+      }
+      if !matches!(next_result(tokens, index)?, Token::Semicolon) {
+          return Err(String::from("expect ';' closing statement"));
+      }
+
+      return Ok(Some(()));
+  }
+
+  }
+}
+
+fn parse_expression(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
+  parse_term(tokens, index)?;
+  match peek_result(tokens, *index)? {
+  Token::Plus => {},
+  Token::Subtract => {},
+  Token::Multiply => {},
+  Token::Divide => {},
+  Token::Modulus => {},
+
+  _ => { 
+      return Ok(()); 
+  }
+
+  };
+
+  *index += 1;
+  parse_term(tokens, index)?;
+
+  return Ok(());
+}
+
+fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
+  match next_result(tokens, index)? {
+
+  Token::Ident(_) => {
+      return Ok(());
+  }
+
+  Token::Num(_) => {
+      return Ok(());
+  }
+
+  _ => {
+      return Err(String::from("invalid expression"));
+  }
+
+  }
+}
+
 // writing tests!
 // testing shows robustness in software, and is good for spotting regressions
 // to run a test, type "cargo test" in the terminal.
 // Rust will then run all the functions annotated with the "#[test]" keyword.
 #[cfg(test)]
 mod tests {
-    use crate::Token;
+    /* use crate::Token;
     use crate::lex;
 
     #[test]
@@ -520,6 +842,25 @@ mod tests {
 
         // test that the lexer catches invalid tokens
         assert!(matches!(lex("^^^"), Err(_)));
+    } */
+    use crate::lex;
+    use crate::parse_statement;
+
+    #[test]
+    fn test_statements() {
+
+        // test that valid statements are correct.
+        let tokens = lex("a = 1 + 2;").unwrap();
+        parse_statement(&tokens, &mut 0).unwrap();
+
+        let tokens = lex("b = 1 / 2;").unwrap();
+        parse_statement(&tokens, &mut 0).unwrap();
+
+
+        // test errors. missing semicolon
+        let tokens = lex("b = 1 / 2").unwrap();
+        assert!(matches!(parse_statement(&tokens, &mut 0), Err(_)));
+
     }
 
 }
