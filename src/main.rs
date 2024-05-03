@@ -510,7 +510,7 @@ fn create_sign(code: &str) -> Token {
     _ => Token::NotToken,
   }
 }
-
+//check for token but returns none instead of error
 fn peek<'a>(tokens: &'a Vec<Token>, index: usize) -> Option<&'a Token> {
   if index < tokens.len() {
       return Some(&tokens[index])
@@ -519,6 +519,7 @@ fn peek<'a>(tokens: &'a Vec<Token>, index: usize) -> Option<&'a Token> {
   }
 }
 
+//same as peek but returns error
 fn peek_result<'a>(tokens: &'a Vec<Token>, index: usize) -> Result<&'a Token, String> {
   if index < tokens.len() {
       return Ok(&tokens[index])
@@ -526,7 +527,7 @@ fn peek_result<'a>(tokens: &'a Vec<Token>, index: usize) -> Result<&'a Token, St
       return Err(String::from("expected a token, but got nothing"))
   }
 }
-
+//returns index to current token and then increments the current index
 fn next<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> Option<&'a Token> {
   if *index < tokens.len() {
       let ret = *index;
@@ -717,6 +718,40 @@ fn parse_var(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, Strin
     }
   }
 }
+
+fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+  match peek(tokens, *index) {
+    None =>  {
+      return Ok(None);
+    }
+    Some(token) => {
+      if !matches!(token, Token::While) {
+        return Err(String::from("while loops must begin with while keyword"));
+      }
+      *index += 1;
+      //parse_bool_expr(tokens, index)?;
+      if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
+        return Err(String::from("missing '{' in while loop"));
+      }
+      
+      loop {
+        match parse_statement(tokens, index)? {
+        None => {
+            break;
+        }
+        Some(()) => {}
+        }
+      }
+
+      if !matches!(next_result(tokens, index)?, Token::RightCurly) {
+        return Err(String::from("Missing '}' in while loop"));
+      }
+      return Ok(Some(()));
+      }
+      //_ => return Ok(None);
+      }
+}
+
 
 fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
   match peek(tokens, *index) {
