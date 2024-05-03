@@ -729,7 +729,7 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>
         return Err(String::from("while loops must begin with while keyword"));
       }
       *index += 1;
-      //parse_bool_expr(tokens, index)?;
+      parse_bool_expr(tokens, index)?;
       if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
         return Err(String::from("missing '{' in while loop"));
       }
@@ -752,6 +752,41 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>
       }
 }
 
+fn parse_if(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+  match peek(tokens, *index) {
+    None =>  {
+      return Ok(None);
+    }
+    Some(token) => {
+      if !matches!(token, Token::If) {
+        return Err(String::from("If statements must begin with if keyword"));
+      }
+      *index += 1;
+      //parse_bool_expr(tokens, index)?;
+      if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
+        return Err(String::from("missing '{' in if statement"));
+      }
+      
+      loop {
+        match parse_statement(tokens, index)? {
+        None => {
+            break;
+        }
+        Some(()) => {}
+        }
+      }
+
+      if !matches!(next_result(tokens, index)?, Token::RightCurly) {
+        return Err(String::from("Missing '}' in if statement loop"));
+      }
+      todo!() //add else exit
+  }
+  }
+}
+
+fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+  todo!()
+}
 
 fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
   match peek(tokens, *index) {
