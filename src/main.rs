@@ -583,40 +583,30 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, 
   }
 
   loop {
-     match next_result(tokens, index)? {
 
-     Token::RightParen => {
-         break;
-     }
+    match next_result(tokens, index)? {
 
-     Token::Int => {
-         match next_result(tokens, index)? {
-         Token::Ident(_) => {
-             match peek_result(tokens, *index)? {
-             Token::Comma => {
-                 *index += 1;
-             }
-             Token::RightParen => {}
-             _ => {
-                 return Err(String::from("expected ',' or ')'"));
-             }
-
-             }
-         }
-         _ => {
-              return Err(String::from("expected ident function parameter"));
-         }
-
-         }
-     }
-
-     _ => {
-         return Err(String::from("expected 'int' keyword or ')' token"));
-     }
-
-     }
+      Token::RightParen => {
+          break;
+      }
+      _ => match parse_declaration(tokens, index)? {
+      None => {
+        break;
+    }
+    Some(_) => {
+    match peek_result(tokens, *index)? {
+      Token::Comma => {
+          *index += 1;
+      }
+      Token::RightParen => {}
+      _ => {return Err(String::from("expected ',' or ')'"));}
+    }
+    }
+    _ => {return Err(String::from("expected declaration function parameter"));}
+    }
+    _ => {return Err(String::from("expected ')' or declaration"));}
   }
-
+  }
 
   if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
       return Err(String::from("expected '{'"));
@@ -647,7 +637,7 @@ fn parse_declaration(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()
     }
     Some(token) => {
         if !matches!(token, Token::Int) {
-            return Err(String::from("functions must begin with int"));
+            return Err(String::from("declarations must begin with int"));
         }
     }
     }
@@ -677,7 +667,7 @@ fn parse_declaration(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()
                     }
                     *index += 1;
                     match next_result(tokens, index)? {
-                      Token::Ident(_) => { }
+                      Token::Ident(_) => {}
             
                       _ => {return Err(String::from("expected identifier"));}
             
@@ -694,6 +684,38 @@ fn parse_declaration(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()
         return Ok(Some(()));
     }
 }
+}
+
+fn parse_var(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+  match next(tokens, index) {
+    None => {
+      return Ok(None);
+    }
+    Some(token) => {
+      if !matches!(token, Token::Ident(_)) {
+        return Err(String::from("expected identifier"));
+      }
+    }
+  }
+  match peek(tokens, *index) {
+    None => {
+      return Ok(None);
+    }
+    Some(token) => {
+      match token {
+        Token::LeftBracket => {
+          *index += 1;
+          parse_expression(tokens, index)?;
+          if !matches!(next_result(tokens, index)?, Token::RightBracket) {
+            return Err(String::from("expect ']'"))
+          }
+        }
+        _ => {}
+      }
+
+      return Ok(Some(()));
+    }
+  }
 }
 
 fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
