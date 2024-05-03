@@ -779,12 +779,36 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String
       if !matches!(next_result(tokens, index)?, Token::RightCurly) {
         return Err(String::from("Missing '}' in if statement loop"));
       }
-      todo!() //add else exit
+      match peek_result(tokens, *index)? {
+          Token::Else => {
+            if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
+              return Err(String::from("missing '{' in else statement"));
+            }
+            match parse_statement(tokens, index)? {
+              None => {
+                  return Ok(None);
+              }
+              Some(()) => {}
+            }
+            if !matches!(next_result(tokens, index)?, Token::RightCurly) {
+              return Err(String::from("missing '}' in else statement"));
+            }
+            return Ok(Some(()));
+          }
+          _ => {return Ok(None);}
+
+        }
+      }
+      }
+
   }
-  }
-}
+
 
 fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+  todo!()
+}
+
+fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
   todo!()
 }
 
