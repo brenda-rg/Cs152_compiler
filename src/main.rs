@@ -805,7 +805,26 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String
 
 
 fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
-  todo!()
+  match peek(tokens, *index) {
+    None => {
+      return Ok(None);
+    }
+    Some(_) => {
+      parse_expression(tokens, index)?;
+      *index += 1;
+      match peek_result(tokens, *index)? {
+        Token::Less => {}
+        Token::Greater => {}
+        Token::LessEqual => {}
+        Token::GreaterEqual => {}
+        Token::Equality => {}
+        Token::NotEqual => {}
+        _ => {return Err(String::from("expected comparison symbol"));}
+      }
+      parse_expression(tokens, index)?;
+      return Ok(Some(()));
+    }
+  }
 }
 
 fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
