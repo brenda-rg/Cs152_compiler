@@ -45,7 +45,7 @@ fn main() {
         
         };
     
-    
+
         // print out the lexer tokens parsed.
     
         /* println!("----------------------");
@@ -562,7 +562,8 @@ fn parse_program(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
 }
 
 fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
-    
+
+  //func keyword (must)
   match next(tokens, index) {
   None => {
       return Ok(None);
@@ -571,46 +572,73 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, 
       if !matches!(token, Token::Func) {
           return Err(String::from("functions must begin with func"));
       }
+  } 
   }
 
-  }
+  //ident (must)
   match next_result(tokens, index)? {
-  Token::Ident(_) => {},
-  _  => {return Err(String::from("functions must have a function identifier"));}
-  };
-
-  if !matches!( next_result(tokens, index)?, Token::LeftParen) {
-      return Err(String::from("expected '('"));
+  Token::Ident(_) => {}, //if ident is next continue
+  _  => {return Err(String::from("functions must have a function identifier"));} //else error
   }
 
+  //'(' (must)
+  if !matches!( next_result(tokens, index)?, Token::LeftParen) {
+      return Err(String::from("expected '(' in function"));
+  }
+
+  //loop to check for declarations
   loop {
 
-    match next_result(tokens, index)? {
-
-      Token::RightParen => {
-          break;
+    match peek(tokens, *index) {
+      None => {return Ok(None)}
+      Some(token) => {
+        // if ')' then no delcarations --> exit loop
+        match token {
+        Token::RightParen => {
+            break;
+        }
+          _ => {}
+        }
       }
-      _ => match parse_declaration(tokens, index)? {
+    }
+      // else parse declaration
+      match parse_declaration(tokens, index)? {
+      //no more declarations to parse --> exit loop
       None => {
-        break;
-    }
-    Some(_) => {
-    match peek_result(tokens, *index)? {
-      Token::Comma => {
-          *index += 1;
+        return Ok(None);
       }
-      Token::RightParen => {}
-      _ => {return Err(String::from("expected ',' or ')'"));}
+      Some(_) => {
+        match peek(tokens, *index) {
+          None => {return Ok(None)}
+          Some(token) => {
+          // check for comma
+            match token {
+            Token::Comma => {
+              *index += 1;
+              match peek_result(tokens, *index)? {
+                //return error if ')' after a ','
+                Token::RightParen => {
+                  return Err(String::from("Expected ')' to finish function declarations but got ',' "));
+                }
+                _ => {} // continue if anything else
+              }
+            }
+            _ => {}
+          }
+         }
+        }
+      } //continue parsing
+      }
     }
+
+
+  match next_result(tokens, index)? {
+    Token::RightParen => {}, //if ident is next continue
+    _  => {return Err(String::from("expected ')' in function"));}//else error
     }
-    _ => {return Err(String::from("expected declaration function parameter"));}
-    }
-    _ => {return Err(String::from("expected ')' or declaration"));}
-  }
-  }
 
   if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
-      return Err(String::from("expected '{'"));
+      {return Err(String::from("expected '{' in function"));}
   }
 
   loop {
@@ -622,69 +650,51 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, 
       }
   }
 
-
   if !matches!(next_result(tokens, index)?, Token::RightCurly) {
-    return Err(String::from("expected '}'"));
+    return Err(String::from("expected '}' in function"));
   }
-
   return Ok(Some(()));
 }
 
 
 fn parse_declaration(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+
   match next(tokens, index) {
     None => {
         return Ok(None);
     }
     Some(token) => {
-        if !matches!(token, Token::Int) {
-            return Err(String::from("declarations must begin with int"));
-        }
+      if !matches!(token, Token::Int) {
+          return Err(String::from("declarations must begin with int"));}
+      } 
     }
-    }
-    // check for int in declaration. Next check '[' or Ident
-    match peek(tokens, *index) {
+  // check for int in declaration. Next check '[' or Ident
+  match peek(tokens, *index) {
     None => {
       return Ok(None);
     }
     Some(token) => {
-        match token {
+      match token {
 
-        Token::LeftBracket => {
-            *index += 1;
-            match next_result(tokens, index)? {
-              Token::Num(_) => {}
-              _ => {
-                return Err(String::from("expected number"));
-              }
-            }
-            match next(tokens, index) {
-              None => {
-                    return Ok(None);
-              }
-              Some(token) => {
-                    if !matches!(token, Token::RightBracket) {
-                        return Err(String::from("expected ']'"));
-                    }
-                    *index += 1;
-                    match next_result(tokens, index)? {
-                      Token::Ident(_) => {}
-            
-                      _ => {return Err(String::from("expected identifier"));}
-            
-                      }
-                  }
-              }
-            }
-
-        Token::Ident(_) => {}
-
-        _  => {return Err(String::from("expected identifier or '['"));}
-        
+      Token::LeftBracket => {
+        *index += 1;
+        match next_result(tokens, index)? {
+          Token::Num(_) => {}
+          _ => {return Err(String::from("expected [number] in declaration"));}
         }
-        return Ok(Some(()));
+        if !matches!(next_result(tokens, index)?, Token::RightBracket) {
+          {return Err(String::from("expected ']' in the declaration"));}
+        }
+        }
+        _ => {}
+      }
     }
-}
+  }
+  match next_result(tokens, index)? {
+    Token::Ident(_) => {},
+    _  => {return Err(String::from("expected '[num]' or an identifier in decalration"));}
+    };
+  return Ok(Some(()))
 }
 
 fn parse_var(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
@@ -827,9 +837,46 @@ fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>,
   }
 }
 
-fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
-  todo!()
-}
+/* fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+  match peek(tokens, *index) {
+    None => {
+      return Ok(None);
+    }
+    Some(_) => {
+      parse_term(tokens, index)?;
+      *index += 1;
+      loop {
+      match peek(tokens, *index) {
+        None => {
+          return Ok(None);
+        }
+        Some(token) => {
+          match token {
+            Token::Divide => {
+              *index += 1;
+              parse_term(tokens, index)?;
+            }
+            Token::Multiply => {
+              *index += 1;
+              parse_term(tokens, index)?;
+            }
+            Token::Modulus => {
+              *index += 1;
+              parse_term(tokens, index)?;
+            }
+            //_ => return ;
+          }
+
+
+        }
+
+      }
+       //_ => {break;}
+      }
+
+    }
+  }
+} */
 
 fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
   match peek(tokens, *index) {
