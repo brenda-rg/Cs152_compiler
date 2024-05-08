@@ -644,7 +644,7 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, 
   loop {
       match parse_statement(tokens, index)? {
       None => {
-          break;
+        break;
       }
       Some(()) => {}
       }
@@ -704,7 +704,7 @@ fn parse_var(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, Strin
     }
     Some(token) => {
       if !matches!(token, Token::Ident(_)) {
-        return Err(String::from("expected identifier"));
+        return Err(String::from("expected identifier in var"));
       }
     }
   }
@@ -718,7 +718,7 @@ fn parse_var(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, Strin
           *index += 1;
           parse_expression(tokens, index)?;
           if !matches!(next_result(tokens, index)?, Token::RightBracket) {
-            return Err(String::from("expect ']'"))
+            return Err(String::from("expected ']' in var"))
           }
         }
         _ => {}
@@ -730,7 +730,7 @@ fn parse_var(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, Strin
 }
 
 fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
-  match peek(tokens, *index) {
+  match next(tokens, index) {
     None =>  {
       return Ok(None);
     }
@@ -738,7 +738,6 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>
       if !matches!(token, Token::While) {
         return Err(String::from("while loops must begin with while keyword"));
       }
-      *index += 1;
       parse_bool_expr(tokens, index)?;
       if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
         return Err(String::from("missing '{' in while loop"));
@@ -757,13 +756,12 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>
         return Err(String::from("Missing '}' in while loop"));
       }
       return Ok(Some(()));
-      }
-      //_ => return Ok(None);
-      }
+    }
+  }
 }
 
 fn parse_if(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
-  match peek(tokens, *index) {
+  match next(tokens, index) {
     None =>  {
       return Ok(None);
     }
@@ -771,8 +769,8 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String
       if !matches!(token, Token::If) {
         return Err(String::from("If statements must begin with if keyword"));
       }
-      *index += 1;
-      //parse_bool_expr(tokens, index)?;
+      
+      parse_bool_expr(tokens, index)?;
       if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
         return Err(String::from("missing '{' in if statement"));
       }
@@ -787,49 +785,48 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String
       }
 
       if !matches!(next_result(tokens, index)?, Token::RightCurly) {
-        return Err(String::from("Missing '}' in if statement loop"));
+        return Err(String::from("Missing '}' in if statement"));
       }
-      match peek_result(tokens, *index)? {
-          Token::Else => {
-            if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
-              return Err(String::from("missing '{' in else statement"));
-            }
-            match parse_statement(tokens, index)? {
-              None => {
-                  return Ok(None);
-              }
-              Some(()) => {}
-            }
-            if !matches!(next_result(tokens, index)?, Token::RightCurly) {
-              return Err(String::from("missing '}' in else statement"));
-            }
-            return Ok(Some(()));
-          }
-          _ => {return Ok(None);}
 
+      match peek(tokens, *index) {
+        None => {return Ok(None)}
+        Some(token) => {
+          match token {
+            Token::Else => {
+              *index += 1;
+              if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
+                return Err(String::from("missing '{' in else statement"));
+              }
+              parse_statement(tokens, index)?;
+              if !matches!(next_result(tokens, index)?, Token::RightCurly) {
+                return Err(String::from("missing '}' in else statement"));
+              }
+            }
+            _ => {}
+          }
+          return Ok(Some(()))
         }
       }
-      }
-
+    }
   }
+}
 
 
 fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
-  match peek(tokens, *index) {
+  match next(tokens, index) {
     None => {
       return Ok(None);
     }
     Some(_) => {
       parse_expression(tokens, index)?;
-      *index += 1;
-      match peek_result(tokens, *index)? {
-        Token::Less => {}
-        Token::Greater => {}
-        Token::LessEqual => {}
-        Token::GreaterEqual => {}
-        Token::Equality => {}
-        Token::NotEqual => {}
-        _ => {return Err(String::from("expected comparison symbol"));}
+      match next_result(tokens, index)? {
+        Token::Less => {},
+        Token::Greater => {},
+        Token::LessEqual => {},
+        Token::GreaterEqual => {},
+        Token::Equality => {},
+        Token::NotEqual => {},
+        _ => {return Err(String::from("expected comparison symbol in bool expression"));}
       }
       parse_expression(tokens, index)?;
       return Ok(Some(()));
@@ -837,46 +834,39 @@ fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>,
   }
 }
 
-/* fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
-  match peek(tokens, *index) {
+fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+  match next(tokens, index) {
     None => {
       return Ok(None);
     }
     Some(_) => {
-      parse_term(tokens, index)?;
-      *index += 1;
+      parse_term(tokens,index)?;
       loop {
-      match peek(tokens, *index) {
-        None => {
-          return Ok(None);
-        }
-        Some(token) => {
-          match token {
-            Token::Divide => {
-              *index += 1;
-              parse_term(tokens, index)?;
-            }
-            Token::Multiply => {
-              *index += 1;
-              parse_term(tokens, index)?;
-            }
-            Token::Modulus => {
-              *index += 1;
-              parse_term(tokens, index)?;
-            }
-            //_ => return ;
+        match peek(tokens, *index) {
+          None => {
+            break;
           }
-
-
+          Some(token) => {
+            match token {
+              Token::Multiply => {
+                *index += 1;
+              },
+              Token::Divide => {
+                *index += 1;
+              },
+              Token::Modulus => {
+                *index += 1;
+              },
+              _ => {return Err(String::from("expected '*' '/' or '%'  or end of mult expression"));}
+            }
+            parse_term(tokens, index)?;
+          }
         }
-
       }
-       //_ => {break;}
-      }
-
+      return Ok(Some(()))
     }
   }
-} */
+}
 
 fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
   match peek(tokens, *index) {
