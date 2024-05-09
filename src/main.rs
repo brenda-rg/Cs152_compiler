@@ -902,24 +902,15 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>,
           parse_expression(tokens, index)?;
       }
 
-      Token::Print => {
+      Token::Print | Token::Read => {
         *index += 1;
         parse_term(tokens, index)?;
       }
 
-      Token::Read => {
-        *index += 1;
-        parse_term(tokens, index)?;
-      }
-
-      Token::Break => {
+      Token::Break | Token::Continue => {
         *index += 1;
       }
 
-      Token::Continue => {
-        *index += 1;
-      }
-      
       Token::While => {
         parse_while_loop(tokens, index)?;
         return Ok(Some(()));
@@ -930,12 +921,12 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>,
       }
 
       _ => {
-           return Err(String::from("invalid statement."));
+           return Err(String::from("invalid statement"));
       }
 
       }
       if !matches!(next_result(tokens, index)?, Token::Semicolon) {
-          return Err(String::from("expect ';' closing statement"));
+          return Err(String::from("expected ';' closing statement"));
       }
 
       return Ok(Some(()));
@@ -959,70 +950,61 @@ fn parse_expression(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String
 }
 
 fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
-
-  let token = match next(tokens, index) {
-    Some(token) => token,
-    None => return Err(String::from("Expected token, found end of input")),
-  };
-
-  let expr = match token {
-      Token::Num(num) => {
-          return Ok(())
-      }
-      Token::LeftParen => {
-          let inner_expr = parse_expression(tokens, index)?;
-          match next(tokens, index) {
-              Some(Token::RightParen) => inner_expr,
-              _ => return Err(String::from("Expected ')' after expression")),
-          }
-      }
-      Token::LeftBracket => {
-          let inner_expr = parse_expression(tokens, index)?;
-          match next(tokens, index) {
-              Some(Token::RightBracket) => inner_expr,
-              _ => return Err(String::from("Expected ']' after expression")),
-          }
-      }
-      Token::Ident(ident) => {
-        match peek_result(tokens, *index)? {
-          Token::LeftBracket => {
-            *index += 1;
-            parse_expression(tokens, index)?;
-            match next_result(tokens, index)? {
-              Token::RightBracket => {}
-              _ => {return Err(String::from("term missing closing ']'"));}
-            }
-          }
-          Token::LeftParen => {
-            *index += 1;
-            loop {
-              match peek_result(tokens, *index)? {
-                Token::RightParen => {
-                  break;
-                }
-                _ => {}
-              }
-              parse_expression(tokens, index)?;
-              match peek_result(tokens, *index)? {
-                Token::Comma => {
-                  *index += 1;
-                  parse_expression(tokens, index)?;
-                }
-                _ => {}
-              }
-            }
-            match next_result(tokens, index)? {
-              Token::RightParen => {}
-              _ => {return Err(String::from("missing closing ')' in \"ident ( expr? )\" "));}
-            }
-          }
-          _ => {}
-        }
+  match next_result(tokens, index)? {
+      Token::Num(_) => {
         return Ok(());
       }
-      _ => return Err(String::from("Expected number, '(', '[', or identifier")),
-    };
-    Ok(expr)
+      Token::LeftParen => {
+        parse_expression(tokens, index)?;
+        match next_result(tokens, index)? {
+          Token::RightParen => {}
+          _ => {return Err(String::from("term missing closing ')' "));}
+        }
+        return Ok(())
+      }
+      Token::Ident(_) => {
+           match peek_result(tokens, *index)? {
+            Token::LeftBracket => {
+              *index += 1;
+              parse_expression(tokens, index)?;
+              match next_result(tokens, index)? {
+                Token::RightBracket => {}
+                _ => {return Err(String::from("term missing closing ']'"));}
+              }
+            }
+            Token::LeftParen => {
+              *index += 1;
+              loop {
+                match peek_result(tokens, *index)? {
+                  Token::RightParen => {
+                    break;
+                  }
+                  _ => {}
+                }
+                parse_expression(tokens, index)?;
+                match peek_result(tokens, *index)? {
+                  Token::Comma => {
+                    *index += 1;
+                    parse_expression(tokens, index)?;
+                  }
+                  _ => {}
+                }
+              }
+              match next_result(tokens, index)? {
+                Token::RightParen => {}
+                _ => {return Err(String::from("missing closing ')' in \"ident ( expr? )\" "));}
+              }
+            }
+            _ => {}
+          }
+          return Ok(());
+      }
+  
+      _ => {
+          return Err(String::from("invalid term expression"));
+      } 
+  }
+  
 }
 
 
