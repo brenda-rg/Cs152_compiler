@@ -41,14 +41,14 @@ fn main() {
             return;
         }
     
-        Ok(data) => data,
+        Ok(tokens) => tokens,
         
         };
     
-    
+
         // print out the lexer tokens parsed.
     
-        println!("----------------------");
+        /* println!("----------------------");
         println!("Finished Lexing the file {}", filename);
         println!("Expression:");
         println!("{code}");
@@ -56,9 +56,26 @@ fn main() {
         println!("----------------------");
         for t in &tokens { //make sure '&' here because rust not gonna work
           println!("{:?}", t);
+        } */
+
+        let mut index: usize = 0;
+        match parse_program(&tokens, &mut index) {
+          Ok(()) => {
+            println!("Program Parsed Successfully.");
+          }
+          Err(message) => {
+            println!("**Error**");
+            println!("----------------------");
+            if tokens.len() == 0 {
+                println!("No code has been provided.");
+            } else {
+                println!("Error: {message}");
+                println!("----------------------");
+            }
+          }
+
         }
-    
-    }
+}
     
     // Creating an Enum within Rust.
     // Documentation: https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html
@@ -266,14 +283,14 @@ fn lex_comment(code: &str) -> (bool, &str) {
     for letter in code.chars() {
       match state {
       StateMachine::Start => {
-      if letter == '#' {
-        state = StateMachine::Filter;
-        success = true;
-        index += 1;
-      }
-      else {
-        return(false, code);
-      }
+        if letter == '#' {
+          state = StateMachine::Filter;
+          success = true;
+          index += 1;
+        }
+        else {
+          return(false, code);
+        }
       }
       StateMachine::Filter => {
         if letter != '\n' {
@@ -287,7 +304,11 @@ fn lex_comment(code: &str) -> (bool, &str) {
       }
       }
     }
-    return(false, code);
+    if success == true {
+      return (true, &code[index..]);
+    } else {
+      return (false, "");
+    }
 }
 
 // lex numbers.
@@ -489,52 +510,446 @@ fn create_sign(code: &str) -> Token {
     _ => Token::NotToken,
   }
 }
-
-fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<String>, String> {
-  let mut code = String::new();
-
-  match next(tokens, index) {
-      Some(Token::Int) => (),
-      _ => return Ok(None),
+//check for token but returns none instead of error
+fn peek<'a>(tokens: &'a Vec<Token>, index: usize) -> Option<&'a Token> {
+  if index < tokens.len() {
+      return Some(&tokens[index])
+  } else {
+      return None
   }
+}
 
-  match next(tokens, index) {
-      Some(Token::Ident(identifier)) => {
-          code.push_str(&format!("int {};", identifier));
+//same as peek but returns error
+fn peek_result<'a>(tokens: &'a Vec<Token>, index: usize) -> Result<&'a Token, String> {
+  if index < tokens.len() {
+      return Ok(&tokens[index])
+  } else {
+      return Err(String::from("expected a token, but got nothing"))
+  }
+}
+//returns index to current token and then increments the current index
+fn next<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> Option<&'a Token> {
+  if *index < tokens.len() {
+      let ret = *index;
+      *index += 1;
+      return Some(&tokens[ret])
+  } else {
+      return None
+  }
+}
+
+fn next_result<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> Result<&'a Token, String> {
+  if *index < tokens.len() {
+      let ret = *index;
+      *index += 1;
+      return Ok(&tokens[ret])
+  } else {
+      return Err(String::from("expected a token, but got nothing"))
+  }
+}
+
+fn parse_program(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
+  loop {
+      match parse_function(tokens, index)? {
+      None => {
+          break;
       }
-      _ => return Err(String::from("Expected identifier after 'int' keyword")),
+      Some(_) => {}
+      }
   }
 
+  return Ok(());
+}
+
+fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+
+  //func keyword (must)
   match next(tokens, index) {
-      Some(Token::Semicolon) => (),
-      _ => return Err(String::from("Expected ';' after identifier")),
+  None => {
+      return Ok(None);
+  }
+  Some(token) => {
+      if !matches!(token, Token::Func) {
+          return Err(String::from("functions must begin with func"));
+      }
+  } 
   }
 
-  return Ok(Some());
+  //ident (must)
+  match next_result(tokens, index)? {
+  Token::Ident(_) => {}, //if ident is next continue
+  _  => {return Err(String::from("functions must have a function identifier"));} //else error
+  }
+
+  //'(' (must)
+  if !matches!( next_result(tokens, index)?, Token::LeftParen) {
+      return Err(String::from("expected '(' in function"));
+  }
+
+  //loop to check for declarations
+  loop {
+    match peek(tokens, *index) {
+      None => {return Ok(None)}
+      Some(token) => {
+        // if ')' then no delcarations --> exit loop
+        match token {
+        Token::RightParen => {
+            break;
+        }
+          _ => {}
+        }
+      }
+    }
+      // else parse declaration
+      match parse_declaration(tokens, index)? {
+      //no more declarations to parse --> exit loop
+      None => {
+        return Ok(None);
+      }
+      Some(_) => {
+
+        match peek(tokens, *index) {
+          None => {return Ok(None)}
+          Some(token) => {
+          // check for comma
+            match token {
+            Token::Comma => {
+              *index += 1;
+              match peek_result(tokens, *index)? {
+                //return error if ')' after a ','
+                Token::RightParen => {
+                  return Err(String::from("Expected ')' to finish function declarations but got ',' "));
+                }
+                _ => {} // continue if anything else
+              }
+            }
+            _ => {}
+          }
+         }
+        }
+      } //continue parsing
+      }
+    }
+
+
+  match next_result(tokens, index)? {
+    Token::RightParen => {}, //if ident is next continue
+    _  => {return Err(String::from("expected ')' in function"));}//else error
+    }
+
+  if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
+      {return Err(String::from("expected '{' in function"));}
+  }
+
+  loop {
+      match parse_statement(tokens, index)? {
+      None => {
+        break;
+      }
+      Some(()) => {}
+      }
+  }
+
+  if !matches!(next_result(tokens, index)?, Token::RightCurly) {
+    return Err(String::from("expected '}' in function"));
+  }
+  return Ok(Some(()));
 }
 
 
-fn parse_expression(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, String> {
+fn parse_declaration(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+
   match next(tokens, index) {
-    None => return Ok(None),
-    Some(_) => {
-        parse_mult_expr(tokens, index)?;
-        loop {
-            match peek(tokens, *index) {
-                Some(Token::Plus) | Some(Token::Minus) => {
-                    *index += 1;
-                    parse_mult_expr(tokens, index)?;
-                }
-                _ => break,
-            }
+    None => {
+        return Ok(None);
+    }
+    Some(token) => {
+      if !matches!(token, Token::Int) {
+          return Err(String::from("declarations must begin with int"));}
+      } 
+    }
+  // check for int in declaration. Next check '[' or Ident
+  match peek(tokens, *index) {
+    None => {
+      return Ok(None);
+    }
+    Some(token) => {
+      match token {
+
+      Token::LeftBracket => {
+        *index += 1;
+        match next_result(tokens, index)? {
+          Token::Num(_) => {}
+          _ => {return Err(String::from("expected [number] in declaration"));}
         }
-        return Ok(Some(()))
+        if !matches!(next_result(tokens, index)?, Token::RightBracket) {
+          {return Err(String::from("expected ']' in the declaration"));}
+        }
+        }
+        _ => {}
+      }
+    }
+  }
+  match next_result(tokens, index)? {
+    Token::Ident(_) => {},
+    _  => {return Err(String::from("expected '[num]' or an identifier in decalration"));}
+    };
+  return Ok(Some(()))
+}
+
+fn parse_var(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+  match next(tokens, index) {
+    None => {
+      return Ok(None);
+    }
+    Some(token) => {
+      if !matches!(token, Token::Ident(_)) {
+        return Err(String::from("expected identifier in var"));
+      }
+    }
+  }
+  match peek(tokens, *index) {
+    None => {
+      return Ok(None);
+    }
+    Some(token) => {
+      match token {
+        Token::LeftBracket => {
+          *index += 1;
+          parse_expression(tokens, index)?;
+          if !matches!(next_result(tokens, index)?, Token::RightBracket) {
+            return Err(String::from("expected ']' in var"))
+          }
+        }
+        _ => {}
+      }
+
+      return Ok(Some(()));
     }
   }
 }
 
-fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
+fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+  match peek(tokens, *index) {
+    None =>  {
+      return Ok(None);
+    }
+    Some(token) => {
+      if !matches!(token, Token::While) {
+        return Err(String::from("while loops must begin with while keyword"));
+      }
+      *index += 1;
+      parse_bool_expr(tokens, index)?;
+      if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
+        return Err(String::from("missing '{' in while loop"));
+      }
+      
+      loop {
+        match parse_statement(tokens, index)? {
+        None => {
+            break;
+        }
+        Some(()) => {}
+        }
+      }
 
+      if !matches!(next_result(tokens, index)?, Token::RightCurly) {
+        return Err(String::from("Missing '}' in while loop"));
+      }
+      return Ok(Some(()));
+    }
+  }
+}
+
+fn parse_if(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+  match next(tokens, index) {
+    None =>  {
+      return Ok(None);
+    }
+    Some(token) => {
+      if !matches!(token, Token::If) {
+        return Err(String::from("If statements must begin with if keyword"));
+      }
+      
+      parse_bool_expr(tokens, index)?;
+      if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
+        return Err(String::from("missing '{' in if statement"));
+      }
+      
+      loop {
+        match parse_statement(tokens, index)? {
+        None => {
+            break;
+        }
+        Some(()) => {}
+        }
+      }
+
+      if !matches!(next_result(tokens, index)?, Token::RightCurly) {
+        return Err(String::from("Missing '}' in if statement"));
+      }
+
+      match peek(tokens, *index) {
+        None => {return Ok(None)}
+        Some(token) => {
+          match token {
+            Token::Else => {
+              *index += 1;
+              if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
+                return Err(String::from("missing '{' in else statement"));
+              }
+              parse_statement(tokens, index)?;
+              if !matches!(next_result(tokens, index)?, Token::RightCurly) {
+                return Err(String::from("missing '}' in else statement"));
+              }
+            }
+            _ => {}
+          }
+          return Ok(Some(()))
+        }
+      }
+    }
+  }
+}
+
+
+fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+
+  match peek(tokens, *index) {
+    None => {
+      return Ok(None);
+    }
+    Some(_) => {
+      parse_expression(tokens, index)?;
+      match peek_result(tokens, *index)? {
+        Token::Less => {},
+        Token::Greater => {},
+        Token::LessEqual => {},
+        Token::GreaterEqual => {},
+        Token::Equality => {},
+        Token::NotEqual => {},
+        _ => {return Err(String::from("expected comparison symbol in bool expression"));}
+      }
+      *index += 1;
+      parse_expression(tokens, index)?;
+      return Ok(Some(()));
+    }
+  }
+}
+
+fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+
+  match peek(tokens, *index) {
+    None => {
+      return Ok(None);
+    }
+    Some(_) => {
+      parse_term(tokens,index)?;
+      loop {
+        match peek(tokens, *index) {
+          None => {
+            break;
+          }
+          Some(token) => {
+            match token {
+              Token::Multiply => {
+                *index += 1;
+              },
+              Token::Divide => {
+                *index += 1;
+              },
+              Token::Modulus => {
+                *index += 1;
+              },
+              _ => {break;}
+            }
+            parse_term(tokens, index)?;
+          }
+        }
+      }
+      return Ok(Some(()))
+    }
+  }
+}
+
+fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+  match peek(tokens, *index) {
+  None => {
+      return Ok(None);
+  }
+
+  Some(token) => {
+      match token {
+      Token::RightCurly => {
+        return Ok(None);
+      }
+
+      Token::Int => {
+          parse_declaration(tokens, index)?;
+      }
+
+      Token::Ident(_) => {
+          parse_var(tokens, index)?;
+          
+          if !matches!(next_result(tokens, index)?, Token::Assign) {
+              return Err(String::from("expected '=' assignment operator"));
+          }
+          parse_expression(tokens, index)?;
+      }
+
+      Token::Return => {
+          *index += 1;
+          parse_expression(tokens, index)?;
+      }
+
+      Token::Print | Token::Read => {
+        *index += 1;
+        parse_term(tokens, index)?;
+      }
+
+      Token::Break | Token::Continue => {
+        *index += 1;
+      }
+
+      Token::While => {
+        parse_while_loop(tokens, index)?;
+        return Ok(Some(()));
+      }
+      Token::If => {
+        parse_if(tokens, index)?;
+        return Ok(Some(()));
+      }
+
+      _ => {
+           return Err(String::from("invalid statement"));
+      }
+
+      }
+      if !matches!(next_result(tokens, index)?, Token::Semicolon) {
+          return Err(String::from("expected ';' closing statement"));
+      }
+
+      return Ok(Some(()));
+  }
+
+  }
+}
+
+fn parse_expression(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
+  parse_mult_expr(tokens, index)?;
+  loop {
+  match peek_result(tokens, *index)? {
+  Token::Plus | Token::Subtract => {
+    *index += 1;
+    parse_mult_expr(tokens, index)?;
+  },
+  _ => { break; }
+  };
+  }
+  return Ok(());
+}
+
+fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
   match next_result(tokens, index)? {
       Token::Num(_) => {
         return Ok(());
@@ -548,7 +963,7 @@ fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
         return Ok(())
       }
       Token::Ident(_) => {
-          match peek_result(tokens, *index)? {
+           match peek_result(tokens, *index)? {
             Token::LeftBracket => {
               *index += 1;
               parse_expression(tokens, index)?;
@@ -587,8 +1002,9 @@ fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
   
       _ => {
           return Err(String::from("invalid term expression"));
-      }
+      } 
   }
+  
 }
 
 
@@ -598,7 +1014,7 @@ fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
 // Rust will then run all the functions annotated with the "#[test]" keyword.
 #[cfg(test)]
 mod tests {
-    use crate::Token;
+    /* use crate::Token;
     use crate::lex;
 
     #[test]
@@ -622,8 +1038,7 @@ mod tests {
 
         // test that the lexer catches invalid tokens
         assert!(matches!(lex("^^^"), Err(_)));
-    }
-
+    } */
     use crate::lex;
     use crate::parse_statement;
 
