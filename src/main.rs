@@ -60,8 +60,14 @@ fn main() {
 
         let mut index: usize = 0;
         match parse_program(&tokens, &mut index) {
-          Ok(()) => {
+          Ok(generated_code) => {
             println!("Program Parsed Successfully.");
+            println!("-------------------------------");
+            println!("Generated Code:");
+            println!("-------------------------------");
+            println!("{generated_code}");
+            println!("-------------------------------");
+            interpreter::execute_ir(&generated_code);
           }
           Err(message) => {
             println!("**Error**");
@@ -548,20 +554,23 @@ fn next_result<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> Result<&'a Toke
   }
 }
 
-fn parse_program(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
+fn parse_program(tokens: &Vec<Token>, index: &mut usize) -> Result<String, String> {
+let mut ir_code: String = String::from("");
   loop {
       match parse_function(tokens, index)? {
       None => {
           break;
       }
-      Some(_) => {}
+      Some(function_ir_code) => {
+        ir_code += &function_ir_code;
+      }
       }
   }
 
-  return Ok(());
+  return Ok(ir_code);
 }
 
-fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<String>, String> {
 
   //func keyword (must)
   match next(tokens, index) {
@@ -575,9 +584,13 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, 
   } 
   }
 
+  let mut function_code:String = String::from("");
+
   //ident (must)
   match next_result(tokens, index)? {
-  Token::Ident(_) => {}, //if ident is next continue
+  Token::Ident(identifier_name) => {
+    function_code += &format!("%func {identifier_name}\n");
+  }, //if ident is next continue
   _  => {return Err(String::from("functions must have a function identifier"));} //else error
   }
 
@@ -646,14 +659,17 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, 
       None => {
         break;
       }
-      Some(()) => {}
+      Some(statements_code) => {
+        function_code += &statements_code;
+      }
       }
   }
 
   if !matches!(next_result(tokens, index)?, Token::RightCurly) {
     return Err(String::from("expected '}' in function"));
   }
-  return Ok(Some(()));
+  function_code += "%endfunc\n";
+  return Ok(Some(function_code));
 }
 
 
@@ -872,13 +888,14 @@ fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>,
   }
 }
 
-fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<String>, String> {
   match peek(tokens, *index) {
   None => {
       return Ok(None);
   }
 
   Some(token) => {
+      let code: String;
       match token {
       Token::RightCurly => {
         return Ok(None);
@@ -929,7 +946,7 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>,
           return Err(String::from("expected ';' closing statement"));
       }
 
-      return Ok(Some(()));
+      return Ok(Some(code));
   }
 
   }
