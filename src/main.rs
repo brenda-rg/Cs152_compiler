@@ -872,13 +872,14 @@ fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>,
   }
 }
 
-fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<String>, String> {
   match peek(tokens, *index) {
   None => {
       return Ok(None);
   }
 
   Some(token) => {
+      let code: String;
       match token {
       Token::RightCurly => {
         return Ok(None);
