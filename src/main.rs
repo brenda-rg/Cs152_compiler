@@ -932,23 +932,24 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>,
 }
 
 fn parse_expression(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, String> {
-  let mut expr = parse_mult_expr(tokens, index)?;
+  let mut t = parse_mult_expr(tokens, index)?;
   loop {
     let opcode = match peek_result(tokens, *index)? {
-    Token::Plus => "%add",
-    Token::Subtract => "%sub",
-    _ => { break; }
-    };
-    
-    *index += 1;
-    let m_expr = parse_mult_expr(tokens, index)?;
-    let t = create_temp();
-    let instr = format!("%int {}\n{opcode} {}, {}, {}\n", t, t, expr.name, m_expr.name);
-    expr.code += &m_expr.code;
-    expr.code += &instr;
-    expr.code = t;
+      Token::Plus => "%add",
+      Token::Subtract => "%sub",
+      _ => { break; }
+      };
+      *index += 1;
+      let m_expr = parse_mult_expr(tokens, index)?;
+      let temp = create_temp();
+      let src1 = e.name;
+      let src2 = m_expr.name;
+      t.code += &format!("%int {temp}\n");
+      t.code += &m_expr.code;
+      t.code += &format!("{opcode} {temp}, {src1}, {src2}\n");
+      t.name = temp;
   }
-  return Ok(expr);
+  return Ok(e);
 }
 
 fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
