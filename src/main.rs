@@ -854,7 +854,7 @@ fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression,
       _ => { break; }
     };
     
-    *index += 1
+    *index += 1;
     let node = parse_term(tokens, index)?;
     expression.code += &node.code;
     let t = create_temp();
@@ -867,7 +867,7 @@ fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression,
 
 }
 
-fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<String>, String> {
+fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
   match peek(tokens, *index) {
   None => {
       return Ok(None);
