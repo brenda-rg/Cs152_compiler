@@ -851,7 +851,7 @@ fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>,
   }
 }
 
-fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<Expression>, String> {
+fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()/*Expression */>, String> {
 
   match peek(tokens, *index) {
     None => {
@@ -911,15 +911,20 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<Stri
       }
       // a = 1 + 1
       // a = 0
-      Token::Ident(_) => {
+      Token::Ident(dest) => {
 
           parse_var(tokens, index)?;
 
           if !matches!(next_result(tokens, index)?, Token::Assign) {
               return Err(String::from("expected '=' assignment operator"));
           }
-          parse_expression(tokens, index)?;
-          //todo!()
+          let expression = parse_expression(tokens, index)?;
+
+          let src = expression.name;
+          //a = 0
+
+          code += &expression.code;
+          code += format!("%mov {dest}, {src}\n")
       }
 
       Token::Return => {
@@ -969,8 +974,8 @@ struct Expression {
   name: String,
 }
 
-fn parse_expression(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, String> {
-  let e = parse_mult_expr(tokens, index)?;
+fn parse_expression(tokens: &Vec<Token>, index: &mut usize) -> Result<()/*Expression*/, String> {
+  parse_mult_expr(tokens, index)?;
   loop {
   match peek_result(tokens, *index)? {
   Token::Plus | Token::Subtract => {
@@ -980,14 +985,18 @@ fn parse_expression(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression
   _ => { break; }
   };
   }
-  return Ok(e);
+  return Ok();
 }
 
 fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, String> {
   //let code: String;
 
-  let e = match next_result(tokens, index)? {
-      Token::Num(_) => { 
+  match next_result(tokens, index)? {
+      Token::Num(num) => {
+        let e = Expression {
+          code: String::from(""),
+          name: format!("{num}"),
+        };
         return Ok(e);
       }
       Token::LeftParen => {
@@ -996,9 +1005,14 @@ fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, Stri
           Token::RightParen => {}
           _ => {return Err(String::from("term missing closing ')' "));}
         }
-        return Ok(e)
+        todo!()
+        //return Ok(e)
       }
-      Token::Ident(_) => {
+      Token::Ident(ident) => {
+        let e = Expression {
+          code: String::from(""),
+          name: ident.clone(),
+        };
            match peek_result(tokens, *index)? {
             Token::LeftBracket => {
               *index += 1;
