@@ -943,7 +943,7 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<Stri
       }
       // a = 1 + 1
       // a = 0
-      Token::Ident(dest) => {
+      Token::Ident(_dest) => {
           let v = parse_var(tokens, index)?;
           if !matches!(next_result(tokens, index)?, Token::Assign) {
               return Err(String::from("expected '=' assignment operator"));
@@ -953,8 +953,10 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<Stri
           //a = 0
           let src = &v.name;
           let temp = create_temp();
-          code += &expression.code;
           code += &v.code;
+          code += &expression.code;
+          //println!("{}, {}\n-------\n", src, src2);
+          //println!("CODE: {}, {}\n-------\n", expression.code, v.code);
           code += &format!("%mov {src}, {src2}\n");
           code += &format!("%int {temp}\n");
           code += &format!("%mov {temp}, {src}\n");
@@ -1078,6 +1080,8 @@ fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, Stri
               e.code += &format!("%mov {temp}, [array + {src}]\n");
               e.name = temp;
             }
+
+            //add(a,b)
             Token::LeftParen => {
               *index += 1;
               loop {
@@ -1087,17 +1091,29 @@ fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, Stri
                   }
                   _ => {}
                 }
-                parse_expression(tokens, index)?;
+                let e2 = parse_expression(tokens, index)?;
+                e.code += &e2.code;
+                //println!("{}--------------------------\n", e2.name);
                 match peek_result(tokens, *index)? {
                   Token::Comma => {
                     *index += 1;
-                    parse_expression(tokens, index)?;
+                    
+                    let e3 = parse_expression(tokens, index)?;
+                    
+                    e.code += &e3.code;
+                    let temp = create_temp();
+                    e.code += &format!("%int {temp}\n");
+                    e.code += &format!("%call {temp}, {ident}({}", e2.name);
+                    e.code += &format!(", {}", e3.name);
+                    e.name = temp;
+                    //println!("{}++++++++++++++++++++++++++\n", e3.code);
+                    //println!("{}++++++++++++++++++++++++++\n", e3.name);
                   }
                   _ => {}
                 }
               }
               match next_result(tokens, index)? {
-                Token::RightParen => {}
+                Token::RightParen => {e.code += &format!(")\n");}
                 _ => {return Err(String::from("missing closing ')' in \"ident ( expr? )\" "));}
               }
             }
