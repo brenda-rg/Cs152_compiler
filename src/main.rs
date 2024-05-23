@@ -60,8 +60,14 @@ fn main() {
 
         let mut index: usize = 0;
         match parse_program(&tokens, &mut index) {
-          Ok(()) => {
+          Ok(generated_code) => {
             println!("Program Parsed Successfully.");
+            println!("-------------------------------");
+            println!("Generated Code:");
+            println!("-------------------------------");
+            println!("{generated_code}");
+            println!("-------------------------------");
+            interpreter::execute_ir(&generated_code);
           }
           Err(message) => {
             println!("**Error**");
@@ -937,17 +943,23 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<Stri
 }
 
 fn parse_expression(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
-  parse_mult_expr(tokens, index)?;
+  let mut expr = parse_mult_expr(tokens, index)?;
   loop {
-  match peek_result(tokens, *index)? {
-  Token::Plus | Token::Subtract => {
+    let opcode = match peek_result(tokens, *index)? {
+    Token::Plus => "%add",
+    Token::Subtract => "%sub",
+    _ => { break; }
+    };
+    
     *index += 1;
-    parse_mult_expr(tokens, index)?;
-  },
-  _ => { break; }
-  };
+    let m_expr = parse_mult_expr(tokens, index)?;
+    let t = create_temp();
+    let instr = format!("%int {}\n{opcode} {}, {}, {}\n", t, t, expr.name, m_expr.name);
+    expr.code += &m_expr.code;
+    expr.code += &instr;
+    expr.code = t;
   }
-  return Ok(());
+  return Ok(expr);
 }
 
 fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
