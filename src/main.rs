@@ -843,39 +843,28 @@ fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>,
   }
 }
 
-fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, String> {
 
-  match peek(tokens, *index) {
-    None => {
-      return Ok(None);
-    }
-    Some(_) => {
-      parse_term(tokens,index)?;
-      loop {
-        match peek(tokens, *index) {
-          None => {
-            break;
-          }
-          Some(token) => {
-            match token {
-              Token::Multiply => {
-                *index += 1;
-              },
-              Token::Divide => {
-                *index += 1;
-              },
-              Token::Modulus => {
-                *index += 1;
-              },
-              _ => {break;}
-            }
-            parse_term(tokens, index)?;
-          }
-        }
-      }
-      return Ok(Some(()))
-    }
+  let mut expression = parse_term(tokens, index)?;
+  loop {
+    let opcode = match peek_error(tokens, *index)?{
+      Token::Multiply => "%mult",
+      Token::Divide => "%div",
+      Token::Modulus => "%mod",
+      _ => { break; }
+    };
+    
+    *index += 1
+    let node = parse_term(tokens, index)?;
+    expression.code += &node.code;
+    let t = create_temp();
+    let instr = format!("%int {}\n{opcode} {}, {}, {}\n", t, t, expression.name, node.name);
+    expression.code += &instr;
+    expression.name = t;
+  
   }
+  return Ok(expression);
+
 }
 
 fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<String>, String> {
@@ -942,7 +931,7 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<Stri
   }
 }
 
-fn parse_expression(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
+fn parse_expression(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, String> {
   let mut expr = parse_mult_expr(tokens, index)?;
   loop {
     let opcode = match peek_result(tokens, *index)? {
