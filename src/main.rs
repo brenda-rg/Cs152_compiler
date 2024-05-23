@@ -757,7 +757,6 @@ fn parse_var(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, Strin
           if !matches!(next_result(tokens, index)?, Token::RightBracket) {
             return Err(String::from("expected ']' in var"))
           }
-          println!("test {}\n", e2.name);
           let src2 = e2.name;
           e.name = format!("[{src} + {src2}]",);
           e.code += &e2.code;
@@ -1068,14 +1067,16 @@ fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, Stri
             Token::LeftBracket => {
               *index += 1;
               e = parse_expression(tokens, index)?;
-              //let temp = create_temp();
-              //todo!()
               match next_result(tokens, index)? {
                 Token::RightBracket => {}
                 _ => {return Err(String::from("term missing closing ']'"));}
               }
               let src = e.name;
-              e.name = format!("array[{src}]");
+              e.name = format!("[array+ {src}]");
+              let temp = create_temp();
+              e.code += &format!("%int {temp}\n");
+              e.code += &format!("%mov {temp}, [array + {src}]\n");
+              e.name = temp;
             }
             Token::LeftParen => {
               *index += 1;
@@ -1106,7 +1107,6 @@ fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, Stri
       }
   
       _ => {
-        println!();
           return Err(String::from("invalid term expression"));
       } 
   };
