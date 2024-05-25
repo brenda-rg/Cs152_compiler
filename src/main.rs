@@ -516,6 +516,16 @@ fn create_sign(code: &str) -> Token {
     _ => Token::NotToken,
   }
 }
+
+static mut VAR_NUM: i64 = 0;
+
+fn create_temp() -> String {
+    unsafe {
+        VAR_NUM += 1;
+        format!("_temp{}", VAR_NUM)
+    }
+}
+
 //check for token but returns none instead of error
 fn peek<'a>(tokens: &'a Vec<Token>, index: usize) -> Option<&'a Token> {
   if index < tokens.len() {
@@ -554,22 +564,24 @@ fn next_result<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> Result<&'a Toke
   }
 }
 
-fn parse_program(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
+fn parse_program(tokens: &Vec<Token>, index: &mut usize) -> Result<String, String> {
+let mut ir_code: String = String::from("");
   loop {
       match parse_function(tokens, index)? {
       None => {
           break;
       }
-      Some(_) => {}
+      Some(function_ir_code) => {
+        ir_code += &function_ir_code;
+      }
       }
   }
 
-  return Ok(());
+  return Ok(ir_code);
 }
 
-fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<String>, String> {
 
-  //func keyword (must)
   match next(tokens, index) {
   None => {
       return Ok(None);
@@ -581,23 +593,23 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, 
   } 
   }
 
-  //ident (must)
+  let mut function_code:String = String::from("");
+
   match next_result(tokens, index)? {
-  Token::Ident(_) => {}, //if ident is next continue
-  _  => {return Err(String::from("functions must have a function identifier"));} //else error
+  Token::Ident(identifier_name) => {
+    function_code += &format!("%func {identifier_name}(");
+  }, 
+  _  => {return Err(String::from("functions must have a function identifier"));} 
   }
 
-  //'(' (must)
   if !matches!( next_result(tokens, index)?, Token::LeftParen) {
       return Err(String::from("expected '(' in function"));
   }
 
-  //loop to check for declarations
   loop {
     match peek(tokens, *index) {
       None => {return Ok(None)}
       Some(token) => {
-        // if ')' then no delcarations --> exit loop
         match token {
         Token::RightParen => {
             break;
@@ -606,42 +618,39 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, 
         }
       }
     }
-      // else parse declaration
       match parse_declaration(tokens, index)? {
-      //no more declarations to parse --> exit loop
       None => {
         return Ok(None);
       }
-      Some(_) => {
-
+      Some(decl) => {
+        function_code += &format!("{decl}, ");
         match peek(tokens, *index) {
           None => {return Ok(None)}
           Some(token) => {
-          // check for comma
             match token {
             Token::Comma => {
               *index += 1;
               match peek_result(tokens, *index)? {
-                //return error if ')' after a ','
                 Token::RightParen => {
                   return Err(String::from("Expected ')' to finish function declarations but got ',' "));
                 }
-                _ => {} // continue if anything else
+                _ => {}
               }
             }
             _ => {}
           }
          }
         }
-      } //continue parsing
+      }
       }
     }
 
 
   match next_result(tokens, index)? {
-    Token::RightParen => {}, //if ident is next continue
-    _  => {return Err(String::from("expected ')' in function"));}//else error
+    Token::RightParen => {}, 
+    _  => {return Err(String::from("expected ')' in function"));}
     }
+    function_code += &format!(")\n");
 
   if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
       {return Err(String::from("expected '{' in function"));}
@@ -652,19 +661,22 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, 
       None => {
         break;
       }
-      Some(()) => {}
+      Some(statements_code) => {
+        function_code += &statements_code;
+      }
       }
   }
 
   if !matches!(next_result(tokens, index)?, Token::RightCurly) {
     return Err(String::from("expected '}' in function"));
   }
-  return Ok(Some(()));
+  function_code += "%endfunc\n";
+  return Ok(Some(function_code));
 }
 
 
-fn parse_declaration(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
-
+fn parse_declaration(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<String>, String> {
+  //let mut decl:String;
   match next(tokens, index) {
     None => {
         return Ok(None);
@@ -674,63 +686,85 @@ fn parse_declaration(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()
           return Err(String::from("declarations must begin with int"));}
       } 
     }
-  // check for int in declaration. Next check '[' or Ident
+  let mut decl = String::from("%int");
   match peek(tokens, *index) {
     None => {
       return Ok(None);
     }
     Some(token) => {
       match token {
-
+      //int [2] a;
       Token::LeftBracket => {
+        let src: String;
         *index += 1;
         match next_result(tokens, index)? {
-          Token::Num(_) => {}
+          Token::Num(num) => {
+            let e = Expression {
+              code: String::from(""),
+              name: format!("{num}"),
+            };
+            src = e.name;
+          }
           _ => {return Err(String::from("expected [number] in declaration"));}
-        }
-        if !matches!(next_result(tokens, index)?, Token::RightBracket) {
-          {return Err(String::from("expected ']' in the declaration"));}
-        }
+          };
+          if !matches!(next_result(tokens, index)?, Token::RightBracket) {
+            {return Err(String::from("expected ']' in the declaration"));}
+          }
+          let ident = match next_result(tokens, index)? {
+            Token::Ident(ident) => {ident},
+            _  => {return Err(String::from("expected '[num]' or an identifier in decalration"));}
+            };
+            decl += &format!("[] {ident}, {src}");
+            return Ok(Some(decl))
         }
         _ => {}
       }
     }
   }
-  match next_result(tokens, index)? {
-    Token::Ident(_) => {},
+  //int a
+  let ident = match next_result(tokens, index)? {
+    Token::Ident(ident) => {ident},
     _  => {return Err(String::from("expected '[num]' or an identifier in decalration"));}
     };
-  return Ok(Some(()))
+  // int a => %int a
+  decl += &format!(" {ident}");
+  return Ok(Some(decl))
 }
 
-fn parse_var(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+fn parse_var(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, String> {
+  let mut e = Expression {code: String::from(""), name: String::from(""),};
+  let src:String;
   match next(tokens, index) {
-    None => {
-      return Ok(None);
-    }
+    None => {return Err(String::from("expected identifier in var but saw none"));}
     Some(token) => {
-      if !matches!(token, Token::Ident(_)) {
-        return Err(String::from("expected identifier in var"));
-      }
+      match token {
+        Token::Ident(ident) => {
+            e.code = String::from("");
+            e.name = ident.clone();
+          src = format!("{}", e.name);
+        }
+        _ => {return Err(String::from("expected identifier in var"));}
     }
   }
+}
   match peek(tokens, *index) {
-    None => {
-      return Ok(None);
-    }
+    None => {Ok(e)}
     Some(token) => {
       match token {
         Token::LeftBracket => {
           *index += 1;
-          parse_expression(tokens, index)?;
+          let e2 = parse_expression(tokens, index)?;
           if !matches!(next_result(tokens, index)?, Token::RightBracket) {
             return Err(String::from("expected ']' in var"))
           }
+          let src2 = e2.name;
+          e.name = format!("[{src} + {src2}]",);
+          e.code += &e2.code;
         }
         _ => {}
       }
-
-      return Ok(Some(()));
+      //v += &format!("\n");
+      return Ok(e);
     }
   }
 }
@@ -755,7 +789,7 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>
         None => {
             break;
         }
-        Some(()) => {}
+        Some(_) => {}
         }
       }
 
@@ -787,7 +821,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String
         None => {
             break;
         }
-        Some(()) => {}
+        Some(_) => {}
         }
       }
 
@@ -826,18 +860,21 @@ fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>,
       return Ok(None);
     }
     Some(_) => {
+      //let mut expr: String;
       parse_expression(tokens, index)?;
       match peek_result(tokens, *index)? {
-        Token::Less => {},
-        Token::Greater => {},
-        Token::LessEqual => {},
-        Token::GreaterEqual => {},
-        Token::Equality => {},
-        Token::NotEqual => {},
+        Token::Less => "%less",
+        Token::Greater => "%greater",
+        Token::LessEqual => "%lessequal",
+        Token::GreaterEqual => "%greaterequal",
+        Token::Equality => "%equal",
+        Token::NotEqual => "%notequal",
         _ => {return Err(String::from("expected comparison symbol in bool expression"));}
-      }
+      };
       *index += 1;
+      //let mut expr2: String;
       parse_expression(tokens, index)?;
+
       return Ok(Some(()));
     }
   }
@@ -845,62 +882,107 @@ fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>,
 
 fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, String> {
 
-  let mut expression = parse_term(tokens, index)?;
-  loop {
-    let opcode = match peek_error(tokens, *index)?{
-      Token::Multiply => "%mult",
-      Token::Divide => "%div",
-      Token::Modulus => "%mod",
-      _ => { break; }
-    };
-    
-    *index += 1;
-    let node = parse_term(tokens, index)?;
-    expression.code += &node.code;
-    let t = create_temp();
-    let instr = format!("%int {}\n{opcode} {}, {}, {}\n", t, t, expression.name, node.name);
-    expression.code += &instr;
-    expression.name = t;
-  
-  }
-  return Ok(expression);
+  /* match peek(tokens, *index) {
+    None => {
+      return Ok(None);
+    }
+    Some(_) => { */
+      let mut e = parse_term(tokens,index)?;
+      loop {
+        match peek(tokens, *index) {
+          None => {
+            break;
+          }
+          Some(token) => {
+            let opcode = match token {
+              Token::Multiply => "%mult" ,
+              Token::Divide => "%div",
+              Token::Modulus => "%mod",
+              _ => {break;}
+            };
+            *index += 1;
+            let node = parse_term(tokens, index)?;
+            let temp = create_temp();
+            let src1 = e.name;
+            let src2 = node.name;
+            e.code += &format!("%int {temp}\n");
+            e.code += &node.code;
+            e.code += &format!("{opcode} {temp}, {src1}, {src2}\n");
+            e.name = temp;
+          }
+        }
+      }
+      return Ok(e)
+    }
+/*   }
+} */
 
-}
-
-fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>, String> {
+fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<String>, String> {
   match peek(tokens, *index) {
   None => {
       return Ok(None);
   }
 
   Some(token) => {
-      let code: String;
+      let mut code:String= String::from("");
       match token {
       Token::RightCurly => {
         return Ok(None);
       }
 
       Token::Int => {
-          parse_declaration(tokens, index)?;
+        match parse_declaration(tokens, index)? {
+          None => {
+            return Ok(None)
+          }
+          Some(declaration) => {
+            code += &declaration;
+            code += &format!("\n");
+          }
+        }
       }
-
-      Token::Ident(_) => {
-          parse_var(tokens, index)?;
-          
+      // a = 1 + 1
+      // a = 0
+      Token::Ident(_dest) => {
+          let v = parse_var(tokens, index)?;
           if !matches!(next_result(tokens, index)?, Token::Assign) {
               return Err(String::from("expected '=' assignment operator"));
           }
-          parse_expression(tokens, index)?;
+          let expression = parse_expression(tokens, index)?;
+          let src2 = expression.name;
+          //a = 0
+          let src = &v.name;
+          let temp = create_temp();
+          code += &v.code;
+          code += &expression.code;
+          //println!("{}, {}\n-------\n", src, src2);
+          //println!("CODE: {}, {}\n-------\n", expression.code, v.code);
+          code += &format!("%mov {src}, {src2}\n");
+          code += &format!("%int {temp}\n");
+          code += &format!("%mov {temp}, {src}\n");
       }
 
       Token::Return => {
           *index += 1;
-          parse_expression(tokens, index)?;
+          let e = parse_expression(tokens, index)?;
+          let src = e.name;
+          code += &e.code;
+          code += &format!("%ret {src}\n");
       }
 
-      Token::Print | Token::Read => {
+      Token::Print => {
+        *index += 1;
+        let expression = parse_term(tokens, index)?;
+        //todo!()
+        let name = expression.name;
+        code += &expression.code;
+        code += &format!("%out {name}\n");
+      }
+
+      Token::Read => {
         *index += 1;
         parse_term(tokens, index)?;
+        todo!()
       }
 
       Token::Break | Token::Continue => {
@@ -909,11 +991,11 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>,
 
       Token::While => {
         parse_while_loop(tokens, index)?;
-        return Ok(Some(()));
+        //todo!()
       }
       Token::If => {
         parse_if(tokens, index)?;
-        return Ok(Some(()));
+        //todo!()
       }
 
       _ => {
@@ -924,15 +1006,22 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize) -> Result<Option<()>,
       if !matches!(next_result(tokens, index)?, Token::Semicolon) {
           return Err(String::from("expected ';' closing statement"));
       }
-
-      return Ok(Some(()));
+      //code += "%endfunc\n"; // fix to actual output !!!!!!!!Mellohi708515*
+      
+      
+      return Ok(Some(code));
   }
 
   }
 }
 
+struct Expression {
+  code: String,
+  name: String,
+}
+
 fn parse_expression(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, String> {
-  let mut t = parse_mult_expr(tokens, index)?;
+  let mut e = parse_mult_expr(tokens, index)?;
   loop {
     let opcode = match peek_result(tokens, *index)? {
       Token::Plus => "%add",
@@ -944,37 +1033,55 @@ fn parse_expression(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression
       let temp = create_temp();
       let src1 = e.name;
       let src2 = m_expr.name;
-      t.code += &format!("%int {temp}\n");
-      t.code += &m_expr.code;
-      t.code += &format!("{opcode} {temp}, {src1}, {src2}\n");
-      t.name = temp;
+      e.code += &format!("%int {temp}\n");
+      e.code += &m_expr.code;
+      e.code += &format!("{opcode} {temp}, {src1}, {src2}\n");
+      e.name = temp;
   }
   return Ok(e);
 }
 
-fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
+fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<Expression, String> {
+
   match next_result(tokens, index)? {
-      Token::Num(_) => {
-        return Ok(());
+      Token::Num(num) => {
+        let e = Expression {
+          code: String::from(""),
+          name: format!("{num}"),
+        };
+        return Ok(e);
       }
       Token::LeftParen => {
-        parse_expression(tokens, index)?;
+        let e = parse_expression(tokens, index)?;
         match next_result(tokens, index)? {
           Token::RightParen => {}
           _ => {return Err(String::from("term missing closing ')' "));}
         }
-        return Ok(())
+        return Ok(e)
       }
-      Token::Ident(_) => {
+      Token::Ident(ident) => {
+        let  mut e = Expression {
+          code: String::from(""),
+          name: ident.clone(),
+        };
            match peek_result(tokens, *index)? {
+            //a[3];
             Token::LeftBracket => {
               *index += 1;
-              parse_expression(tokens, index)?;
+              e = parse_expression(tokens, index)?;
               match next_result(tokens, index)? {
                 Token::RightBracket => {}
                 _ => {return Err(String::from("term missing closing ']'"));}
               }
+              let src = e.name;
+              e.name = format!("[array+ {src}]");
+              let temp = create_temp();
+              e.code += &format!("%int {temp}\n");
+              e.code += &format!("%mov {temp}, [array + {src}]\n");
+              e.name = temp;
             }
+
+            //add(a,b)
             Token::LeftParen => {
               *index += 1;
               loop {
@@ -984,29 +1091,41 @@ fn parse_term(tokens: &Vec<Token>, index: &mut usize) -> Result<(), String> {
                   }
                   _ => {}
                 }
-                parse_expression(tokens, index)?;
+                let e2 = parse_expression(tokens, index)?;
+                e.code += &e2.code;
+                //println!("{}--------------------------\n", e2.name);
                 match peek_result(tokens, *index)? {
                   Token::Comma => {
                     *index += 1;
-                    parse_expression(tokens, index)?;
+                    
+                    let e3 = parse_expression(tokens, index)?;
+                    
+                    e.code += &e3.code;
+                    let temp = create_temp();
+                    e.code += &format!("%int {temp}\n");
+                    e.code += &format!("%call {temp}, {ident}({}", e2.name);
+                    e.code += &format!(", {}", e3.name);
+                    e.name = temp;
+                    //println!("{}++++++++++++++++++++++++++\n", e3.code);
+                    //println!("{}++++++++++++++++++++++++++\n", e3.name);
                   }
                   _ => {}
                 }
               }
               match next_result(tokens, index)? {
-                Token::RightParen => {}
+                Token::RightParen => {e.code += &format!(")\n");}
                 _ => {return Err(String::from("missing closing ')' in \"ident ( expr? )\" "));}
               }
             }
             _ => {}
           }
-          return Ok(());
+          return Ok(e);
       }
   
       _ => {
           return Err(String::from("invalid term expression"));
       } 
-  }
+  };
   
 }
 
