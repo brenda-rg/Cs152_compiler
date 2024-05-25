@@ -577,6 +577,10 @@ let mut ir_code: String = String::from("");
       }
       }
   }
+  let main = String::from("main");
+  if !find_symbol(&func_table, &main) {
+    return Err(format!("Error. no main function defined"));
+  };
 
   return Ok(ir_code);
 }
