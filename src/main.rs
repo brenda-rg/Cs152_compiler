@@ -714,6 +714,10 @@ fn parse_declaration(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut 
         *index += 1;
         match next_result(tokens, index)? {
           Token::Num(num) => {
+              /* if num <= 0 {
+                return Err(format!("Error. Declaring an array of size {num} which is <= 0"));
+              } */
+
             let e = Expression {
               code: String::from(""),
               name: format!("{num}"),
@@ -979,7 +983,11 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
       }
       // a = 1 + 1
       // a = 0
-      Token::Ident(_dest) => {
+      Token::Ident(dest) => {
+        if !find_symbol(&symbol_table, dest) {
+          return Err(format!("Error. Tryng to use an undeclared var: {dest}"));
+        };
+
           let v = parse_var(tokens, index, symbol_table)?;
           if !matches!(next_result(tokens, index)?, Token::Assign) {
               return Err(String::from("expected '=' assignment operator"));
