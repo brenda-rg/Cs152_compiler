@@ -729,9 +729,9 @@ fn parse_declaration(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut 
         *index += 1;
         match next_result(tokens, index)? {
           Token::Num(num) => {
-              /* if num <= 0 {
+              if *num <= 0 {
                 return Err(format!("Error. Declaring an array of size {num} which is <= 0"));
-              } */
+              }
 
             let e = Expression {
               code: String::from(""),
