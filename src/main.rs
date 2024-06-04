@@ -705,7 +705,7 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize, func_table: &mut Vec<S
 
 
 
-fn parse_declaration(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>) -> Result<Option<String>, String> {
+fn parse_declaration(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, _func_table: &mut Vec<String>, array_table: &mut Vec<String>) -> Result<Option<String>, String> {
   //let mut decl:String;
   //let mut symbol_table: Vec<String> = vec![];
   match next(tokens, index) {
@@ -835,7 +835,7 @@ fn parse_var(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<Strin
   }
 }
 
-fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>) -> Result<Option<()>, String> {
+fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>) -> Result<Option< String>, String> {
   match peek(tokens, *index) {
     None =>  {
       return Ok(None);
@@ -844,8 +844,12 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
       if !matches!(token, Token::While) {
         return Err(String::from("while loops must begin with while keyword"));
       }
+      let mut code = String::from(":beginloop1\n");
       *index += 1;
-      parse_bool_expr(tokens, index, symbol_table,func_table, array_table)?;
+      let expr = parse_bool_expr(tokens, index, symbol_table,func_table, array_table)?;
+      code += &expr.code;
+      code += &format!("%branch_ifn {}, :endloop1\n", expr.name);
+
       if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
         return Err(String::from("missing '{' in while loop"));
       }
@@ -855,14 +859,21 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
         None => {
             break;
         }
-        Some(_) => {}
+        Some(statement) => {
+          code += &statement;
+        }
         }
       }
 
       if !matches!(next_result(tokens, index)?, Token::RightCurly) {
         return Err(String::from("Missing '}' in while loop"));
       }
-      return Ok(Some(()));
+
+      code += &format!("%jmp :beginloop1\n");
+      code += ":endloop1\n";
+      //let codenode = Some(code);
+
+      return Ok(Some(code));
     }
   }
 }
@@ -919,29 +930,40 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
 }
 
 
-fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>) -> Result<Option<()>, String> {
-
+fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>) -> Result<Expression, String> {
+  let mut expr = Expression {
+    code: String::from(""),
+    name: String::from(""),
+  };
   match peek(tokens, *index) {
     None => {
-      return Ok(None);
+      return Ok(expr);
     }
     Some(_) => {
-      //let mut expr: String;
-      parse_expression(tokens, index, symbol_table,func_table, array_table)?;
-      match peek_result(tokens, *index)? {
-        Token::Less => "%less",
-        Token::Greater => "%greater",
-        Token::LessEqual => "%lessequal",
-        Token::GreaterEqual => "%greaterequal",
-        Token::Equality => "%equal",
-        Token::NotEqual => "%notequal",
+
+      let expr2 = parse_expression(tokens, index, symbol_table,func_table, array_table)?;
+      expr.code += &expr2.code;
+      let opcode = match peek_result(tokens, *index)? {
+        Token::Less => "%lt",
+        Token::Greater => "%gt",
+        Token::LessEqual => "%le",
+        Token::GreaterEqual => "%ge",
+        Token::Equality => "%eq",
+        Token::NotEqual => "%neq",
         _ => {return Err(String::from("expected comparison symbol in bool expression"));}
       };
-      *index += 1;
-      //let mut expr2: String;
-      parse_expression(tokens, index, symbol_table,func_table, array_table)?;
 
-      return Ok(Some(()));
+      *index += 1;
+
+      let expr3 = parse_expression(tokens, index, symbol_table,func_table, array_table)?;
+      let temp = create_temp();
+      let src1 = expr2.name;
+      let src2 = expr3.name;
+      expr.code += &format!("%int {temp}\n");
+      expr.code += &expr3.code;
+      expr.code += &format!("{opcode} {temp}, {src1}, {src2}\n");
+      expr.name = temp;
+      return Ok(expr);
     }
   }
 }
@@ -1060,9 +1082,17 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
       }
 
       Token::While => {
-        parse_while_loop(tokens, index, symbol_table,func_table, array_table)?;
-        //todo!()
+        match parse_while_loop(tokens, index, symbol_table,func_table, array_table)? {
+          None => {
+            //Ok(None);
+          }
+          Some(w) => {
+            code += &w;
+        }
+        }
+        return Ok(Some(code));
       }
+
       Token::If => {
         parse_if(tokens, index, symbol_table,func_table, array_table)?;
         //todo!()
@@ -1076,7 +1106,7 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
       if !matches!(next_result(tokens, index)?, Token::Semicolon) {
           return Err(String::from("expected ';' closing statement"));
       }
-      //code += "%endfunc\n"; // fix to actual output !!!!!!!!Mellohi708515*
+
       
       
       return Ok(Some(code));
