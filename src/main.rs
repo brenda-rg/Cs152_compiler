@@ -526,6 +526,24 @@ fn create_temp() -> String {
     }
 }
 
+static mut VAR_NUM2: i64 = 0;
+
+fn create_begin() -> String {
+  unsafe {
+      VAR_NUM2 += 1;
+      format!(":beginningloop{}", VAR_NUM2)
+  }
+}
+
+fn create_end() -> String {
+  unsafe {
+      format!(":endloop{}", VAR_NUM2)
+  }
+}
+
+
+
+
 //check for token but returns none instead of error
 fn peek<'a>(tokens: &'a Vec<Token>, index: usize) -> Option<&'a Token> {
   if index < tokens.len() {
@@ -612,6 +630,7 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize, func_table: &mut Vec<S
   let mut function_code:String = String::from("");
   let mut symbol_table: Vec<String> = vec![];
   let mut array_table: Vec<String> = vec![];
+  let mut loop_table: Vec<String> = vec![];
 
   match next_result(tokens, index)? {
   Token::Ident(identifier_name) => {
@@ -647,7 +666,7 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize, func_table: &mut Vec<S
         }
       }
     }
-      match parse_declaration(tokens, index, &mut symbol_table, func_table, &mut array_table)? {
+      match parse_declaration(tokens, index, &mut symbol_table, func_table, &mut array_table, &mut loop_table)? {
       None => {
         return Ok(None);
       }
@@ -686,7 +705,7 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize, func_table: &mut Vec<S
   }
 
   loop {
-      match parse_statement(tokens, index, &mut symbol_table,func_table, &mut array_table)? {
+      match parse_statement(tokens, index, &mut symbol_table,func_table, &mut array_table, &mut loop_table)? {
       None => {
         break;
       }
@@ -705,7 +724,7 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize, func_table: &mut Vec<S
 
 
 
-fn parse_declaration(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, _func_table: &mut Vec<String>, array_table: &mut Vec<String>) -> Result<Option<String>, String> {
+fn parse_declaration(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, _func_table: &mut Vec<String>, array_table: &mut Vec<String>, _loop_table: &mut Vec<String>) -> Result<Option<String>, String> {
   //let mut decl:String;
   //let mut symbol_table: Vec<String> = vec![];
   match next(tokens, index) {
@@ -789,7 +808,7 @@ fn parse_declaration(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut 
   return Ok(Some(decl))
 }
 
-fn parse_var(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>) -> Result<Expression, String> {
+fn parse_var(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Expression, String> {
   let mut e = Expression {code: String::from(""), name: String::from(""),};
   let src:String;
   match next(tokens, index) {
@@ -817,7 +836,7 @@ fn parse_var(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<Strin
             return Err(format!("Error. type mismatch: using int as array in var: {}", e.name));
           };
           *index += 1;
-          let e2 = parse_expression(tokens, index, symbol_table,func_table, array_table)?;
+          let e2 = parse_expression(tokens, index, symbol_table,func_table, array_table, loop_table)?;
           if !matches!(next_result(tokens, index)?, Token::RightBracket) {
             return Err(String::from("expected ']' in var"))
           }
@@ -835,7 +854,7 @@ fn parse_var(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<Strin
   }
 }
 
-fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>) -> Result<Option< String>, String> {
+fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option< String>, String> {
   match peek(tokens, *index) {
     None =>  {
       return Ok(None);
@@ -844,18 +863,21 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
       if !matches!(token, Token::While) {
         return Err(String::from("while loops must begin with while keyword"));
       }
-      let mut code = String::from(":beginloop1\n");
+      let begin = create_begin();
+      let end = create_end();
+      let mut code = format!("{}\n", begin);
+      loop_table.push(begin.clone());
       *index += 1;
-      let expr = parse_bool_expr(tokens, index, symbol_table,func_table, array_table)?;
+      let expr = parse_bool_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
       code += &expr.code;
-      code += &format!("%branch_ifn {}, :endloop1\n", expr.name);
+      code += &format!("%branch_ifn {}, {}\n", expr.name, end);
 
       if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
         return Err(String::from("missing '{' in while loop"));
       }
       
       loop {
-        match parse_statement(tokens, index,symbol_table,func_table, array_table)? {
+        match parse_statement(tokens, index,symbol_table,func_table, array_table, loop_table)? {
         None => {
             break;
         }
@@ -869,8 +891,9 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
         return Err(String::from("Missing '}' in while loop"));
       }
 
-      code += &format!("%jmp :beginloop1\n");
-      code += ":endloop1\n";
+      code += &format!("%jmp {}\n", begin);
+      code += &format!("{}\n", end);
+      loop_table.push(end.clone());
       //let codenode = Some(code);
 
       return Ok(Some(code));
@@ -878,7 +901,7 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
   }
 }
 
-fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>) -> Result<Option<()>, String> {
+fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option<()>, String> {
   match next(tokens, index) {
     None =>  {
       return Ok(None);
@@ -888,13 +911,13 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
         return Err(String::from("If statements must begin with if keyword"));
       }
       
-      parse_bool_expr(tokens, index, symbol_table,func_table, array_table)?;
+      parse_bool_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
       if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
         return Err(String::from("missing '{' in if statement"));
       }
       
       loop {
-        match parse_statement(tokens, index, symbol_table,func_table, array_table)? {
+        match parse_statement(tokens, index, symbol_table,func_table, array_table, loop_table)? {
         None => {
             break;
         }
@@ -915,7 +938,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
               if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
                 return Err(String::from("missing '{' in else statement"));
               }
-              parse_statement(tokens, index, symbol_table,func_table, array_table)?;
+              parse_statement(tokens, index, symbol_table,func_table, array_table, loop_table)?;
               if !matches!(next_result(tokens, index)?, Token::RightCurly) {
                 return Err(String::from("missing '}' in else statement"));
               }
@@ -930,7 +953,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
 }
 
 
-fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>) -> Result<Expression, String> {
+fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Expression, String> {
   let mut expr = Expression {
     code: String::from(""),
     name: String::from(""),
@@ -941,7 +964,7 @@ fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
     }
     Some(_) => {
 
-      let expr2 = parse_expression(tokens, index, symbol_table,func_table, array_table)?;
+      let expr2 = parse_expression(tokens, index, symbol_table,func_table, array_table, loop_table)?;
       expr.code += &expr2.code;
       let opcode = match peek_result(tokens, *index)? {
         Token::Less => "%lt",
@@ -955,7 +978,7 @@ fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
 
       *index += 1;
 
-      let expr3 = parse_expression(tokens, index, symbol_table,func_table, array_table)?;
+      let expr3 = parse_expression(tokens, index, symbol_table,func_table, array_table, loop_table)?;
       let temp = create_temp();
       let src1 = expr2.name;
       let src2 = expr3.name;
@@ -968,14 +991,14 @@ fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
   }
 }
 
-fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>) -> Result<Expression, String> {
+fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Expression, String> {
 
   /* match peek(tokens, *index) {
     None => {
       return Ok(None);
     }
     Some(_) => { */
-      let mut e = parse_term(tokens,index, symbol_table,func_table, array_table)?;
+      let mut e = parse_term(tokens,index, symbol_table,func_table, array_table, loop_table)?;
       loop {
         match peek(tokens, *index) {
           None => {
@@ -989,7 +1012,7 @@ fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
               _ => {break;}
             };
             *index += 1;
-            let node = parse_term(tokens, index, symbol_table,func_table, array_table)?;
+            let node = parse_term(tokens, index, symbol_table,func_table, array_table, loop_table)?;
             let temp = create_temp();
             let src1 = e.name;
             let src2 = node.name;
@@ -1005,7 +1028,7 @@ fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
 /*   }
 } */
 
-fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>) -> Result<Option<String>, String> {
+fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option<String>, String> {
   match peek(tokens, *index) {
   None => {
       return Ok(None);
@@ -1019,7 +1042,7 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
       }
 
       Token::Int => {
-        match parse_declaration(tokens, index, symbol_table, func_table, array_table)? {
+        match parse_declaration(tokens, index, symbol_table, func_table, array_table, loop_table)? {
           None => {
             return Ok(None)
           }
@@ -1036,11 +1059,11 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
           return Err(format!("Error. undeclared var: {dest}"));
         };
 
-          let v = parse_var(tokens, index, symbol_table,func_table, array_table)?;
+          let v = parse_var(tokens, index, symbol_table,func_table, array_table, loop_table)?;
           if !matches!(next_result(tokens, index)?, Token::Assign) {
               return Err(String::from("expected '=' assignment operator"));
           }
-          let expression = parse_expression(tokens, index, symbol_table,func_table, array_table)?;
+          let expression = parse_expression(tokens, index, symbol_table,func_table, array_table, loop_table)?;
           let src2 = expression.name;
           //a = 0
           let src = &v.name;
@@ -1056,7 +1079,7 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
 
       Token::Return => {
           *index += 1;
-          let e = parse_expression(tokens, index, symbol_table,func_table, array_table)?;
+          let e = parse_expression(tokens, index, symbol_table,func_table, array_table, loop_table)?;
           let src = e.name;
           code += &e.code;
           code += &format!("%ret {src}\n");
@@ -1064,7 +1087,7 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
 
       Token::Print => {
         *index += 1;
-        let expression = parse_term(tokens, index, symbol_table,func_table, array_table)?;
+        let expression = parse_term(tokens, index, symbol_table,func_table, array_table, loop_table)?;
         //todo!()
         let name = expression.name;
         code += &expression.code;
@@ -1073,7 +1096,7 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
 
       Token::Read => {
         *index += 1;
-        parse_term(tokens, index, symbol_table,func_table, array_table)?;
+        parse_term(tokens, index, symbol_table,func_table, array_table, loop_table)?;
         todo!()
       }
 
@@ -1082,7 +1105,7 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
       }
 
       Token::While => {
-        match parse_while_loop(tokens, index, symbol_table,func_table, array_table)? {
+        match parse_while_loop(tokens, index, symbol_table,func_table, array_table, loop_table)? {
           None => {
             //Ok(None);
           }
@@ -1094,7 +1117,7 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
       }
 
       Token::If => {
-        parse_if(tokens, index, symbol_table,func_table, array_table)?;
+        parse_if(tokens, index, symbol_table,func_table, array_table, loop_table)?;
         //todo!()
       }
 
@@ -1120,8 +1143,8 @@ struct Expression {
   name: String,
 }
 
-fn parse_expression(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>) -> Result<Expression, String> {
-  let mut e = parse_mult_expr(tokens, index, symbol_table,func_table, array_table)?;
+fn parse_expression(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Expression, String> {
+  let mut e = parse_mult_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
   loop {
     let opcode = match peek_result(tokens, *index)? {
       Token::Plus => "%add",
@@ -1129,7 +1152,7 @@ fn parse_expression(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut V
       _ => { break; }
       };
       *index += 1;
-      let m_expr = parse_mult_expr(tokens, index, symbol_table,func_table, array_table)?;
+      let m_expr = parse_mult_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
       let temp = create_temp();
       let src1 = e.name;
       let src2 = m_expr.name;
@@ -1141,7 +1164,7 @@ fn parse_expression(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut V
   return Ok(e);
 }
 
-fn parse_term(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>) -> Result<Expression, String> {
+fn parse_term(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Expression, String> {
 
   match next_result(tokens, index)? {
       Token::Num(num) => {
@@ -1152,7 +1175,7 @@ fn parse_term(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Str
         return Ok(e);
       }
       Token::LeftParen => {
-        let e = parse_expression(tokens, index, symbol_table,func_table, array_table)?;
+        let e = parse_expression(tokens, index, symbol_table,func_table, array_table, loop_table)?;
         match next_result(tokens, index)? {
           Token::RightParen => {}
           _ => {return Err(String::from("term missing closing ')' "));}
@@ -1177,7 +1200,7 @@ fn parse_term(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Str
                 return Err(format!("Error. type mismatch: using int as array in var: {ident}"));
               };
               *index += 1;
-              e = parse_expression(tokens, index, symbol_table, func_table, array_table)?;
+              e = parse_expression(tokens, index, symbol_table, func_table, array_table, loop_table)?;
               match next_result(tokens, index)? {
                 Token::RightBracket => {}
                 _ => {return Err(String::from("term missing closing ']'"));}
@@ -1200,14 +1223,14 @@ fn parse_term(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Str
                   }
                   _ => {}
                 }
-                let e2 = parse_expression(tokens, index, symbol_table,func_table, array_table)?;
+                let e2 = parse_expression(tokens, index, symbol_table,func_table, array_table, loop_table)?;
                 e.code += &e2.code;
                 //println!("{}--------------------------\n", e2.name);
                 match peek_result(tokens, *index)? {
                   Token::Comma => {
                     *index += 1;
                     
-                    let e3 = parse_expression(tokens, index, symbol_table,func_table, array_table)?;
+                    let e3 = parse_expression(tokens, index, symbol_table,func_table, array_table, loop_table)?;
                     
                     e.code += &e3.code;
                     let temp = create_temp();
