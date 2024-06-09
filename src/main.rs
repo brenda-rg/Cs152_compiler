@@ -541,7 +541,30 @@ fn create_end() -> String {
   }
 }
 
+static mut VAR_NUM3: i64 = 0;
 
+fn create_ifbegin() -> String {
+  unsafe {
+      VAR_NUM3 += 1;
+      format!(":iftrue{}", VAR_NUM3)
+  }
+}
+
+fn create_ifend() -> String {
+  unsafe {
+      format!(":endif{}", VAR_NUM3)
+  }
+}
+
+fn create_else() -> String {
+  unsafe {
+      format!(":else{}", VAR_NUM3)
+  }
+}
+
+pub fn get_last(loop_table: &Vec<String>) -> Option<&String> {
+  loop_table.last()
+}
 
 
 //check for token but returns none instead of error
@@ -867,6 +890,7 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
       let end = create_end();
       let mut code = format!("{}\n", begin);
       loop_table.push(begin.clone());
+      loop_table.push(end.clone());
       *index += 1;
       let expr = parse_bool_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
       code += &expr.code;
@@ -893,7 +917,8 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
 
       code += &format!("%jmp {}\n", begin);
       code += &format!("{}\n", end);
-      loop_table.push(end.clone());
+      loop_table.pop();
+      loop_table.pop();
       //let codenode = Some(code);
 
       return Ok(Some(code));
@@ -901,17 +926,26 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
   }
 }
 
-fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option<()>, String> {
+fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option<String>, String> {
   match next(tokens, index) {
     None =>  {
       return Ok(None);
     }
     Some(token) => {
+      let mut ifs:String = String::from("");
       if !matches!(token, Token::If) {
         return Err(String::from("If statements must begin with if keyword"));
       }
       
-      parse_bool_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
+      let begin = create_ifbegin();
+      let end = create_ifend();
+      let ifelse = create_else();
+
+      let expr =  parse_bool_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
+      ifs += &expr.code;
+      ifs += &format!("%branch_if {}, {}\n", expr.name, begin);
+      ifs += &format!("%jmp {}\n", ifelse);
+      ifs += &format!("{}\n", begin);
       if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
         return Err(String::from("missing '{' in if statement"));
       }
@@ -921,16 +955,21 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
         None => {
             break;
         }
-        Some(_) => {}
+        Some(s) => {
+          ifs += &s;
+        }
         }
       }
-
+      ifs += &format!("%jmp {}\n", end);
       if !matches!(next_result(tokens, index)?, Token::RightCurly) {
         return Err(String::from("Missing '}' in if statement"));
       }
 
       match peek(tokens, *index) {
-        None => {return Ok(None)}
+        None => {
+          ifs += &format!("{}\n", end);
+          return Ok(Some(ifs))
+        }
         Some(token) => {
           match token {
             Token::Else => {
@@ -938,14 +977,21 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
               if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
                 return Err(String::from("missing '{' in else statement"));
               }
-              parse_statement(tokens, index, symbol_table,func_table, array_table, loop_table)?;
+              ifs += &format!("{}\n", ifelse);
+              match parse_statement(tokens, index, symbol_table,func_table, array_table, loop_table)? {
+                None => {}
+                Some(s2) => {
+                  ifs += &s2;
+                }
+              }
               if !matches!(next_result(tokens, index)?, Token::RightCurly) {
                 return Err(String::from("missing '}' in else statement"));
               }
             }
-            _ => {}
+            _ => {ifs += &format!("{}\n", ifelse);}
           }
-          return Ok(Some(()))
+          ifs += &format!("{}\n", end);
+          return Ok(Some(ifs));
         }
       }
     }
@@ -1100,15 +1146,26 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
         todo!()
       }
 
-      Token::Break | Token::Continue => {
+      Token::Break => {
+        *index += 1;
+        match get_last(loop_table) {
+          None => {
+            return Err(String::from("Semantic Error: break used outside of loop\n"));
+          }
+          Some(b) => {
+            println!("Last loop: {}\n", b);
+            code += &format!("%jmp {}\n", b);
+          }
+        }
+      }
+
+      Token::Continue => {
         *index += 1;
       }
 
       Token::While => {
         match parse_while_loop(tokens, index, symbol_table,func_table, array_table, loop_table)? {
-          None => {
-            //Ok(None);
-          }
+          None => {}
           Some(w) => {
             code += &w;
         }
@@ -1117,8 +1174,13 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
       }
 
       Token::If => {
-        parse_if(tokens, index, symbol_table,func_table, array_table, loop_table)?;
-        //todo!()
+        match parse_if(tokens, index, symbol_table,func_table, array_table, loop_table)? {
+          None => {}
+          Some(w) => {
+            code += &w;
+          }
+        }
+        return Ok(Some(code));
       }
 
       _ => {
