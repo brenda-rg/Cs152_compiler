@@ -1,0 +1,109 @@
+phase 3
+|X|add
+|X|math
+|X|array
+|X|funciton
+
+
+semantic error checking
+*know where to find them in code & exaplin
+
+|X| Using a variable without having declared it
+|X| Calling a function which has not been defined
+|X| Not defining a main function
+|X| Defining a variable more than once
+| | Type mismatch: using a scalar integer variable as an array of integers
+    * if you try to index an int that is not an array & vice-versa
+
+| | Type mismatch: using an array of integers as a scalar integer
+|X| Creating an array of size <= 0.
+
++ need to define error message in interpreter --> only one being displayed rn
++ need to catch the error in interpreter/copmiler
+
+___________________________________________________________________________________________
+
+phase 4
+loop
+nested_loop
+if
+break
+
+
+Control flow
+- need to use primitive constructs
+- jumps
+    + %jmp label
+        * unconditionally jumps to code in IR
+    + %branch_if    var,    :label
+    + %branch_ifn   var,    :label
+
+                                                    %int t_cond
+if x < 10 {                     to implement:       %int x
+    x++                                             %mov x ...
+}                                                   %lt t_cond  x  10
+                                                    %brn :endif t_cond
+                                                        %add x x1
+                                                    :endif
+- randomly generate endlabel
+- using that
+
+
+if_else
+
+if x < 10 {                                         lt t_cond x 10
+    x++;                                            brn :else
+} else {                                            add x x1
+    x--;                                            jmp :if_cond
+}                                                   :else           <-- jumps here from 2nd line
+                                                    sub x x1
+                                                    :ifend          <-- jumps here from 4th line
+
+
+while
+                                                    :cond
+while x < 10 {                                      lt t_cond x 10
+    x++;                                            brn :endloop t_cond
+}                                                   jmp :cond
+                                                    :endloop
+*needs to be able to jump forward and back
+
+
+break
+
+parse_statement
+^--v these are not the same call
+vs while in parse_while
+
+- becomes and unconditional jump to the end of a loop
+*need to know what loop you are currently in
+
+
+loop {
+    loop {
+        if cond1 break
+    }
+    if cond2 break
+}
+
+*to know what loop you are in in need to use stack of some kind
+- can use vector
+- single var to check is insufficient
+- when entering parse while push a new label onto the stack
+- if see break statement check top of stack
+* stacks rrly good for nested contexts
+make id and while labels different
+string and counter prob
+
+stack += new_label()
+
+parse_statement (looping)
+
+stack - :label
+
+%jmp :endloop
+stack -> label?
+
+semantic error checking in phase 4 is about break
+only used inside of loopif outside of loop throw error
+*use stack to implement
