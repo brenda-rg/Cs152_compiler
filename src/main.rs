@@ -702,7 +702,7 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize, func_table: &mut Vec<S
   }
 
   loop {
-      match parse_statement(tokens, index, &mut symbol_table,func_table, &mut array_table, &mut int_table)? {
+      match parse_statement(tokens, index, &mut symbol_table,func_table, &mut array_table, &mut int_table,loop_table)? {
       None => {
         break;
       }
@@ -867,7 +867,7 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
       }
       
       loop {
-        match parse_statement(tokens, index,symbol_table,func_table, array_table, int_table)? {
+        match parse_statement(tokens, index,symbol_table,func_table, array_table, int_table,loop_table)? {
         None => {
             break;
         }
@@ -934,7 +934,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
               if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
                 return Err(String::from("missing '{' in else statement"));
               }
-              parse_statement(tokens, index, symbol_table,func_table, array_table, int_table)?;
+              parse_statement(tokens, index, symbol_table,func_table, array_table, int_table,loop_table)?;
               if !matches!(next_result(tokens, index)?, Token::RightCurly) {
                 return Err(String::from("missing '}' in else statement"));
               }
@@ -1090,7 +1090,7 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
       }
 
       Token::While => {
-        parse_while_loop(tokens, index, symbol_table,func_table, array_table, int_table)?;
+        parse_while_loop(tokens, index, symbol_table,func_table, array_table, int_table,loop_table)?;
         //todo!()
       }
       Token::If => {
