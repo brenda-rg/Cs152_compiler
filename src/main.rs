@@ -851,7 +851,7 @@ fn parse_var(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<Strin
   }
 }
 
-fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, int_table: &mut Vec<String>) -> Result<Option<()>, String> {
+fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, int_table: &mut Vec<String>,loop_table: &mut Vec<String>) -> Result<Option<()>, String> {
   match peek(tokens, *index) {
     None =>  {
       return Ok(None);
@@ -861,7 +861,7 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
         return Err(String::from("while loops must begin with while keyword"));
       }
       *index += 1;
-      parse_bool_expr(tokens, index, symbol_table,func_table, array_table, int_table)?;
+      parse_bool_expr(tokens, index, symbol_table,func_table, array_table, int_table,loop_table)?;
       if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
         return Err(String::from("missing '{' in while loop"));
       }
@@ -1013,7 +1013,7 @@ fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
 /*   }
 } */
 
-fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, int_table: &mut Vec<String>) -> Result<Option<String>, String> {
+fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, int_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option<String>, String> {
   match peek(tokens, *index) {
   None => {
       return Ok(None);
@@ -1094,7 +1094,7 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
         //todo!()
       }
       Token::If => {
-        parse_if(tokens, index, symbol_table,func_table, array_table, int_table)?;
+        parse_if(tokens, index, symbol_table,func_table, array_table, int_table, loop_table)?;
         //todo!()
       }
 
