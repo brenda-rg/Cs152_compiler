@@ -866,7 +866,7 @@ fn parse_var(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<Strin
   }
 }
 
-fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, int_table: &mut Vec<String>,loop_table: &mut Vec<String>) -> Result<Option<(String)>, String> {
+fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, int_table: &mut Vec<String>,loop_table: &mut Vec<String>) -> Result<Option<String>, String> {
   match peek(tokens, *index) {
     None =>  {
       return Ok(None);
@@ -1027,7 +1027,7 @@ fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
       return Ok(None);
     }
     Some(_) => { */
-      let mut e = parse_term(tokens,index, symbol_table,func_table, array_table, int_table)?;
+      let mut e = parse_term(tokens,index, symbol_table,func_table, array_table, loop_table)?;
       loop {
         match peek(tokens, *index) {
           None => {
@@ -1134,12 +1134,26 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
       }
 
       Token::While => {
-        parse_while_loop(tokens, index, symbol_table,func_table, array_table, loop_table)?;
-        //todo!()
+        match parse_while_loop(tokens, index, symbol_table,func_table, array_table, loop_table)? {
+          None => {
+            //Ok(None);
+          }
+          Some(w) => {
+            code += &w;
+        }
+        }
+        return Ok(Some(code));
       }
       Token::If => {
-        parse_if(tokens, index, symbol_table,func_table, array_table, loop_table)?;
-        //todo!()
+        match parse_if(tokens, index, symbol_table,func_table, array_table, loop_table)? {
+          None => {
+            //Ok(None);
+          }
+          Some(x) => {
+            code += &x;
+          }
+        }
+        return Ok(Some(code));
       }
 
       _ => {
