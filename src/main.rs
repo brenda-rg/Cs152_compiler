@@ -862,7 +862,7 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
         return Err(String::from("while loops must begin with while keyword"));
       }
       *index += 1;
-      parse_bool_expr(tokens, index, symbol_table,func_table, array_table, int_table,loop_table)?;
+      parse_bool_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
       if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
         return Err(String::from("missing '{' in while loop"));
       }
@@ -899,7 +899,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
       let mut code = format!("{}\n",begin1);
       loop_table.push(begin1.clone());
       *index += 1;
-      let expr = parse_bool_expr(tokens, index, symbol_table,func_table, array_table, int_table, loop_table)?;
+      let expr = parse_bool_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
       code += &expr.code;
       code += &format!("%branch_if {}, {}\n", expr.name, begin1);
 
