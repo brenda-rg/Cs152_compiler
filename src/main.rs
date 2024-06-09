@@ -806,7 +806,7 @@ fn parse_declaration(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut 
   return Ok(Some(decl))
 }
 
-fn parse_var(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, int_table: &mut Vec<String>) -> Result<Expression, String> {
+fn parse_var(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Expression, String> {
   let mut e = Expression {code: String::from(""), name: String::from(""),};
   let src:String;
   match next(tokens, index) {
@@ -963,8 +963,9 @@ fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
     }
     Some(_) => {
       //let mut expr: String;
-      parse_expression(tokens, index, symbol_table,func_table, array_table, loop_table)?;
-      match peek_result(tokens, *index)? {
+      let expr2 = parse_expression(tokens, index, symbol_table,func_table, array_table, loop_table)?;
+      expr.code += &expr2.code;
+      let opcode = match peek_result(tokens, *index)? {
         Token::Less => "%less",
         Token::Greater => "%greater",
         Token::LessEqual => "%lessequal",
