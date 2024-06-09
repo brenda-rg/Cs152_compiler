@@ -883,7 +883,7 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
   }
 }
 
-fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, int_table: &mut Vec<String>) -> Result<Option<()>, String> {
+fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, int_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option<()>, String> {
   match next(tokens, index) {
     None =>  {
       return Ok(None);
@@ -898,7 +898,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
       let mut code = format!("{}\n",begin1);
       loop_table.push(begin1.clone());
       *index += 1;
-      let expr = parse_bool_expr(tokens, index, symbol_table,func_table, array_table, int_table)?;
+      let expr = parse_bool_expr(tokens, index, symbol_table,func_table, array_table, int_table, loop_table)?;
       code += &expr.code;
       code += &format!("%branch_if {}, {}\n", expr.name, begin1);
 
@@ -909,7 +909,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
       }
       
       loop {
-        match parse_statement(tokens, index, symbol_table,func_table, array_table, int_table)? {
+        match parse_statement(tokens, index, symbol_table,func_table, array_table, int_table, loop_table)? {
         None => {
             break;
         }
@@ -949,7 +949,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
 }
 
 
-fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, int_table: &mut Vec<String>) -> Result<Option<()>, String> {
+fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, int_table: &mut Vec<String>,loop_table: &mut Vec<String>) -> Result<Option<()>, String> {
 
   match peek(tokens, *index) {
     None => {
