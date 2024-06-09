@@ -628,6 +628,7 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize, func_table: &mut Vec<S
   let mut symbol_table: Vec<String> = vec![];
   let mut array_table: Vec<String> = vec![];
   let mut int_table: Vec<String> = vec![];
+  let mut loop_table: Vec<String> = vec![];
 
   match next_result(tokens, index)? {
   Token::Ident(identifier_name) => {
