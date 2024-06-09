@@ -703,7 +703,7 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize, func_table: &mut Vec<S
   }
 
   loop {
-      match parse_statement(tokens, index, &mut symbol_table,func_table, &mut array_table, &mut int_table,loop_table)? {
+      match parse_statement(tokens, index, &mut symbol_table,func_table, &mut array_table, &mut int_table, &mut loop_table)? {
       None => {
         break;
       }
