@@ -722,7 +722,7 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize, func_table: &mut Vec<S
 
 
 
-fn parse_declaration(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option<String>, String> {
+fn parse_declaration(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, _func_table: &mut Vec<String>, array_table: &mut Vec<String>, _loop_table: &mut Vec<String>) -> Result<Option<String>, String> {
   //let mut decl:String;
   //let mut symbol_table: Vec<String> = vec![];
   match next(tokens, index) {
