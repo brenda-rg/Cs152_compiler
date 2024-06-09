@@ -541,6 +541,19 @@ fn create_endif() -> String {
   }
 }
 
+fn create_begin() -> String {
+  unsafe {
+      VAR_NUM2 += 1;
+      format!(":beginningloop{}", VAR_NUM2)
+  }
+}
+
+fn create_end() -> String {
+  unsafe {
+      format!(":endloop{}", VAR_NUM2)
+  }
+}
+
 //check for token but returns none instead of error
 fn peek<'a>(tokens: &'a Vec<Token>, index: usize) -> Option<&'a Token> {
   if index < tokens.len() {
@@ -861,7 +874,16 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
       if !matches!(token, Token::While) {
         return Err(String::from("while loops must begin with while keyword"));
       }
+      
+      let begin = create_begin();
+      let end = create_end();
+      let mut code = format!("{}\n", begin);
+      loop_table.push(begin.clone());
       *index += 1;
+      let expr = parse_bool_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
+      code += &expr.code;
+      code += &format!("%branch_ifn {}, {}\n", expr.name, end);
+
       parse_bool_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
       if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
         return Err(String::from("missing '{' in while loop"));
@@ -881,6 +903,12 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
       if !matches!(next_result(tokens, index)?, Token::RightCurly) {
         return Err(String::from("Missing '}' in while loop"));
       }
+
+      code += &format!("%jmp {}\n", begin);
+      code += &format!("{}\n", end);
+      loop_table.push(end.clone());
+      //let codenode = Some(code);
+
       return Ok(Some(code));
     }
   }
@@ -1012,7 +1040,7 @@ fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
               _ => {break;}
             };
             *index += 1;
-            let node = parse_term(tokens, index, symbol_table,func_table, array_table, int_table)?;
+            let node = parse_term(tokens, index, symbol_table,func_table, array_table, loop_table)?;
             let temp = create_temp();
             let src1 = e.name;
             let src2 = node.name;
@@ -1042,7 +1070,7 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
       }
 
       Token::Int => {
-        match parse_declaration(tokens, index, symbol_table, func_table, array_table, int_table)? {
+        match parse_declaration(tokens, index, symbol_table, func_table, array_table, loop_table)? {
           None => {
             return Ok(None)
           }
