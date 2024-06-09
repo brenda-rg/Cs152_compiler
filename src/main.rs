@@ -950,7 +950,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
 }
 
 
-fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, int_table: &mut Vec<String>,loop_table: &mut Vec<String>) -> Result<Option<()>, String> {
+fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, int_table: &mut Vec<String>,loop_table: &mut Vec<String>) -> Result<Expression, String> {
 
   let mut expr = Expression {
     code: String::from(""),
