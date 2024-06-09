@@ -703,7 +703,7 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize, func_table: &mut Vec<S
   }
 
   loop {
-      match parse_statement(tokens, index, &mut symbol_table,func_table, &mut array_table, &mut int_table, &mut loop_table)? {
+      match parse_statement(tokens, index, &mut symbol_table,func_table, &mut array_table, &mut loop_table)? {
       None => {
         break;
       }
@@ -868,18 +868,20 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
       }
       
       loop {
-        match parse_statement(tokens, index,symbol_table,func_table, array_table, int_table,loop_table)? {
+        match parse_statement(tokens, index,symbol_table,func_table, array_table, loop_table)? {
         None => {
             break;
         }
-        Some(_) => {}
+        Some(statement) => {
+          code += &statement;
+        }
         }
       }
 
       if !matches!(next_result(tokens, index)?, Token::RightCurly) {
         return Err(String::from("Missing '}' in while loop"));
       }
-      return Ok(Some(()));
+      return Ok(Some(code));
     }
   }
 }
@@ -910,7 +912,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
       }
       
       loop {
-        match parse_statement(tokens, index, symbol_table,func_table, array_table, int_table, loop_table)? {
+        match parse_statement(tokens, index, symbol_table,func_table, array_table, loop_table)? {
         None => {
             break;
         }
@@ -935,7 +937,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
               if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
                 return Err(String::from("missing '{' in else statement"));
               }
-              parse_statement(tokens, index, symbol_table,func_table, array_table, int_table,loop_table)?;
+              parse_statement(tokens, index, symbol_table,func_table, array_table, loop_table)?;
               if !matches!(next_result(tokens, index)?, Token::RightCurly) {
                 return Err(String::from("missing '}' in else statement"));
               }
@@ -1026,7 +1028,7 @@ fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
 /*   }
 } */
 
-fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, int_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option<String>, String> {
+fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option<String>, String> {
   match peek(tokens, *index) {
   None => {
       return Ok(None);
