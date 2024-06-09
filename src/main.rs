@@ -526,6 +526,21 @@ fn create_temp() -> String {
     }
 }
 
+static mut VAR_NUM3: i64 = 0;
+
+fn create_beginif() -> String {
+  unsafe {
+    VAR_NUM3 += 1;
+    format!("%iftrue{}",VAR_NUM3)
+  }
+}
+
+fn create_endif() -> String {
+  unsafe {
+    format!("%endif{}",VAR_NUM3)
+  }
+}
+
 //check for token but returns none instead of error
 fn peek<'a>(tokens: &'a Vec<Token>, index: usize) -> Option<&'a Token> {
   if index < tokens.len() {
@@ -877,8 +892,18 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
       if !matches!(token, Token::If) {
         return Err(String::from("If statements must begin with if keyword"));
       }
+
+      let begin1 = create_beginif();
+      let end1 = create_endif();
+      let mut code = format!("{}\n",begin1);
+      loop_table.push(begin1.clone());
+      *index += 1;
+      let expr = parse_bool_expr(tokens, index, symbol_table,func_table, array_table, int_table)?;
+      code += &expr.code;
+      code += &format!("%branch_if {}, {}\n", expr.name, begin1);
+
       
-      parse_bool_expr(tokens, index, symbol_table,func_table, array_table, int_table)?;
+      
       if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
         return Err(String::from("missing '{' in if statement"));
       }
@@ -895,6 +920,10 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
       if !matches!(next_result(tokens, index)?, Token::RightCurly) {
         return Err(String::from("Missing '}' in if statement"));
       }
+
+      code += &format!("%jmp {}\n", end1);
+      code += &format!("{}\n", begin1);
+      loop_table.push(begin1.clone());
 
       match peek(tokens, *index) {
         None => {return Ok(None)}
