@@ -980,6 +980,17 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
                 return Err(String::from("missing '}' in else statement"));
               }
             }
+            Token::If => {
+              match parse_statement(tokens, index, symbol_table,func_table, array_table, loop_table)? {
+                None => {
+                  //Ok(None);
+                }
+                Some(x) => {
+                  code += &x;
+                }
+              }
+              return Ok(Some(code));
+            }
             _ => {}
           }
           code += &format!("{}\n",end1);
