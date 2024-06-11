@@ -528,17 +528,25 @@ fn create_temp() -> String {
 
 static mut VAR_NUM3: i64 = 0;
 static mut VAR_NUM2: i64 = 0;
+static mut VAR_ELSE: i64 = 0;
 
 fn create_beginif() -> String {
   unsafe {
     VAR_NUM3 += 1;
-    format!("%iftrue{}",VAR_NUM3)
+    format!(":iftrue{}",VAR_NUM3)
   }
 }
 
 fn create_endif() -> String {
   unsafe {
-    format!("%endif{}",VAR_NUM3)
+    format!(":endif{}",VAR_NUM3)
+  }
+}
+
+fn create_else() -> String {
+  unsafe {
+    VAR_ELSE += 1;
+    format!(":else{}",VAR_ELSE)
   }
 }
 
@@ -927,14 +935,15 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
 
       let begin1 = create_beginif();
       let end1 = create_endif();
-      let mut code = format!("{}\n",begin1);
-      loop_table.push(begin1.clone());
+      let else1 = create_else();
+      let mut code:String= String::from("");
       *index += 1;
       let expr = parse_bool_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
+
       code += &expr.code;
       code += &format!("%branch_if {}, {}\n", expr.name, begin1);
-
-      
+      code += &format!("%jmp {}\n", else1);
+      code += &format!("{}:\n", begin1);
       
       if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
         return Err(String::from("missing '{' in if statement"));
@@ -954,8 +963,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
       }
 
       code += &format!("%jmp {}\n", end1);
-      code += &format!("{}\n", begin1);
-      loop_table.push(begin1.clone());
+      code += &format!("{}:\n", else1);
 
       match peek(tokens, *index) {
         None => {return Ok(None)}
@@ -973,6 +981,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
             }
             _ => {}
           }
+          code += format!("{}:\n",end1)
           return Ok(Some(code))
         }
       }
