@@ -962,7 +962,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
       }
 
       code += &format!("%jmp {}\n", end1);
-      code += &format!("{}:\n", else1);
+      code += &format!("{}\n", else1);
 
       match peek(tokens, *index) {
         None => {return Ok(None)}
@@ -980,7 +980,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
             }
             _ => {}
           }
-          code += &format!("{}:\n",end1);
+          code += &format!("{}\n",end1);
           return Ok(Some(code))
         }
       }
