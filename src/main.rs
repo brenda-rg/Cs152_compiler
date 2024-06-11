@@ -937,7 +937,6 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
       let end1 = create_endif();
       let else1 = create_else();
       let mut code:String= String::from("");
-      *index += 1;
       let expr = parse_bool_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
 
       code += &expr.code;
@@ -981,7 +980,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
             }
             _ => {}
           }
-          code += format!("{}:\n",end1);
+          code += &format!("{}:\n",end1);
           return Ok(Some(code))
         }
       }
