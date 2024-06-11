@@ -936,7 +936,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
       let begin1 = create_beginif();
       let end1 = create_endif();
       let else1 = create_else();
-      let mut code = String::new();
+      let mut code:String= String::from("");
       *index += 1;
       let expr = parse_bool_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
 
