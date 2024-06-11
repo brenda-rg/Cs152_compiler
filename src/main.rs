@@ -1005,12 +1005,12 @@ fn parse_bool_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
       let expr2 = parse_expression(tokens, index, symbol_table,func_table, array_table, loop_table)?;
       expr.code += &expr2.code;
       let opcode = match peek_result(tokens, *index)? {
-        Token::Less => "%less",
-        Token::Greater => "%greater",
-        Token::LessEqual => "%lessequal",
-        Token::GreaterEqual => "%greaterequal",
-        Token::Equality => "%equal",
-        Token::NotEqual => "%notequal",
+        Token::Less => "%lt",
+        Token::Greater => "%gt",
+        Token::LessEqual => "%le",
+        Token::GreaterEqual => "%ge",
+        Token::Equality => "%eq",
+        Token::NotEqual => "%neq",
         _ => {return Err(String::from("expected comparison symbol in bool expression"));}
       };
       *index += 1;
