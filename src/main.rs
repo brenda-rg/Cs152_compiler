@@ -975,21 +975,13 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
               if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
                 return Err(String::from("missing '{' in else statement"));
               }
-              parse_statement(tokens, index, symbol_table,func_table, array_table, loop_table)?;
+              match parse_statement(tokens, index, symbol_table,func_table, array_table, loop_table)? {
+                None => {}
+                Some (w) => {code += &w;}
+              }
               if !matches!(next_result(tokens, index)?, Token::RightCurly) {
                 return Err(String::from("missing '}' in else statement"));
               }
-            }
-            Token::If => {
-              match parse_statement(tokens, index, symbol_table,func_table, array_table, loop_table)? {
-                None => {
-                  //Ok(None);
-                }
-                Some(x) => {
-                  code += &x;
-                }
-              }
-              return Ok(Some(code));
             }
             _ => {}
           }
