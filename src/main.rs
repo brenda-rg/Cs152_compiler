@@ -953,7 +953,9 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
         None => {
             break;
         }
-        Some(_) => {}
+        Some(y) => {
+          code += &y;
+        }
         }
       }
 
