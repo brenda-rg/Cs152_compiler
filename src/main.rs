@@ -942,7 +942,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
       code += &expr.code;
       code += &format!("%branch_if {}, {}\n", expr.name, begin1);
       code += &format!("%jmp {}\n", else1);
-      code += &format!("{}:\n", begin1);
+      code += &format!("{}\n", begin1);
       
       if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
         return Err(String::from("missing '{' in if statement"));
