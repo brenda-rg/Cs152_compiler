@@ -981,7 +981,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
             }
             _ => {}
           }
-          code += format!("{}:\n",end1)
+          code += format!("{}:\n",end1);
           return Ok(Some(code))
         }
       }
