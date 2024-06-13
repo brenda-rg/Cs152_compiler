@@ -892,7 +892,6 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
       code += &expr.code;
       code += &format!("%branch_ifn {}, {}\n", expr.name, end);
 
-      parse_bool_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
       if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
         return Err(String::from("missing '{' in while loop"));
       }
