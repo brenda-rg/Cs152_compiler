@@ -923,7 +923,7 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
   }
 }
 
-fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option<String>, String> {
+fn parse_if(tokens: &Vec<Token>, index: &mut usize, _symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option<String>, String> {
   match next(tokens, index) {
     None =>  {
       return Ok(None);
@@ -1314,6 +1314,29 @@ fn parse_term(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Str
       } 
   };
   
+}
+
+fn parse_break(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Expression, String> {
+  match next(tokens, *index) {
+    None => Ok(None),
+    Some(token) => {
+        if !matches!(token, Token::Keyword(Keyword::Break)){
+            return Err(String::from("Break statements must begin with 'break' keyword"));
+        }
+
+        let loop_label = match loop_table.last(){
+            Some(label) => label.clone(),
+            None => return Err(String::from("Break statement outside of loop")),
+        };
+
+        *index += 1;
+
+        let mut code:String= String::from("");
+        code += &format!("%jmp {}\n", loop_label);
+
+        Ok(Some(code))
+    }
+  }
 }
 
 
