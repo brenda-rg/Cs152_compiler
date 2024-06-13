@@ -1069,7 +1069,7 @@ fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
 /*   }
 } */
 
-fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option<&String>, String> {
+fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option<String>, String> {
   match peek(tokens, *index) {
   None => {
       return Ok(None);
