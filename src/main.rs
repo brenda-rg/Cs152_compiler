@@ -685,7 +685,7 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize, func_table: &mut Vec<S
         }
       }
     }
-      match parse_declaration(tokens, index, &mut symbol_table, func_table, &mut array_table, &mut int_table)? {
+      match parse_declaration(tokens, index, &mut symbol_table, func_table, &mut array_table, &mut loop_table)? {
       None => {
         return Ok(None);
       }
