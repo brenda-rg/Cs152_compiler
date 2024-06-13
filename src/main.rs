@@ -968,7 +968,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
 
       match peek(tokens, *index) {
         None => {
-          code += &format!("{}\n", else1);
+          code += &format!("{}\n", end1);
           return Ok(Some(code))}
         Some(token) => {
           match token {
