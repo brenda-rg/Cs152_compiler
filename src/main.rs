@@ -887,6 +887,7 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
       let end = create_end();
       let mut code = format!("{}\n", begin);
       loop_table.push(begin.clone());
+      loop_table.push(end.clone());
       *index += 1;
       let expr = parse_bool_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
       code += &expr.code;
@@ -913,7 +914,8 @@ fn parse_while_loop(tokens: &Vec<Token>, index: &mut usize,symbol_table: &mut Ve
 
       code += &format!("%jmp {}\n", begin);
       code += &format!("{}\n", end);
-      loop_table.push(end.clone());
+      loop_table.pop();
+      loop_table.pop();
       //let codenode = Some(code);
 
       return Ok(Some(code));
@@ -962,10 +964,12 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
       }
 
       code += &format!("%jmp {}\n", end1);
-      code += &format!("{}\n", else1);
+      //code += &format!("{}\n", else1);
 
       match peek(tokens, *index) {
-        None => {return Ok(None)}
+        None => {
+          code += &format!("{}\n", else1);
+          return Ok(Some(code))}
         Some(token) => {
           match token {
             Token::Else => {
@@ -973,6 +977,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
               if !matches!(next_result(tokens, index)?, Token::LeftCurly) {
                 return Err(String::from("missing '{' in else statement"));
               }
+              code += &format!("{}\n", else1);
               match parse_statement(tokens, index, symbol_table,func_table, array_table, loop_table)? {
                 None => {}
                 Some (w) => {code += &w;}
@@ -981,7 +986,7 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
                 return Err(String::from("missing '}' in else statement"));
               }
             }
-            _ => {}
+            _ => {code += &format!("{}\n", else1);}
           }
           code += &format!("{}\n",end1);
           return Ok(Some(code))
@@ -1147,7 +1152,7 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
         };
 
         *index += 1;
-
+        println!("LAST LOOP: {loop_label}\n");
         let mut code:String= String::from("");
         code += &format!("%jmp {}\n", loop_label);
       }
