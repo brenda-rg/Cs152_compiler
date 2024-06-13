@@ -649,7 +649,6 @@ fn parse_function(tokens: &Vec<Token>, index: &mut usize, func_table: &mut Vec<S
   let mut function_code:String = String::from("");
   let mut symbol_table: Vec<String> = vec![];
   let mut array_table: Vec<String> = vec![];
-  let mut int_table: Vec<String> = vec![];
   let mut loop_table: Vec<String> = vec![];
 
   match next_result(tokens, index)? {
@@ -1070,7 +1069,7 @@ fn parse_mult_expr(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
 /*   }
 } */
 
-fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option<String>, String> {
+fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Option<&String>, String> {
   match peek(tokens, *index) {
   None => {
       return Ok(None);
@@ -1142,7 +1141,19 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
         todo!()
       }
 
-      Token::Break | Token::Continue => {
+      Token::Break => {
+        let loop_label = match loop_table.last(){
+          Some(label) => label.clone(),
+          None => return Err(String::from("Break statement outside of loop")),
+        };
+
+        *index += 1;
+
+        let mut code:String= String::from("");
+        code += &format!("%jmp {}\n", loop_label);
+      }
+
+      Token::Continue => {
         *index += 1;
       }
 
@@ -1315,7 +1326,7 @@ fn parse_term(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Str
   };
   
 }
-
+/*
 fn parse_break(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<String>, func_table: &mut Vec<String>, array_table: &mut Vec<String>, loop_table: &mut Vec<String>) -> Result<Expression, String> {
   match next(tokens, *index) {
     None => Ok(None),
@@ -1338,6 +1349,7 @@ fn parse_break(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<St
     }
   }
 }
+*/
 
 
 // writing tests!
