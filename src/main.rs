@@ -958,12 +958,12 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
         }
         }
       }
-
+      code += &format!("%jmp {}\n", end1);
       if !matches!(next_result(tokens, index)?, Token::RightCurly) {
         return Err(String::from("Missing '}' in if statement"));
       }
 
-      code += &format!("%jmp {}\n", end1);
+      
       //code += &format!("{}\n", else1);
 
       match peek(tokens, *index) {
@@ -1155,6 +1155,7 @@ fn parse_statement(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Ve
         println!("LAST LOOP: {loop_label}\n");
         let mut code:String= String::from("");
         code += &format!("%jmp {}\n", loop_label);
+        //return Ok(Some(code));
       }
 
       Token::Continue => {
