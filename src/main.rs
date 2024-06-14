@@ -530,7 +530,7 @@ fn create_temp() -> String {
 static mut VAR_NUM3: i64 = 0;
 static mut VAR_NUM2: i64 = 0;
 
-/* fn create_beginif() -> String {
+fn create_beginif() -> String {
   unsafe {
     VAR_NUM3 += 1;
     format!(":iftrue{}",VAR_NUM3)
@@ -545,10 +545,9 @@ fn create_endif() -> String {
 
 fn create_else() -> String {
   unsafe {
-    VAR_ELSE += 1;
-    format!(":else{}",VAR_ELSE)
+    format!(":else{}",VAR_NUM3)
   }
-} */
+} 
 
 fn create_begin() -> String {
   unsafe {
@@ -560,25 +559,6 @@ fn create_begin() -> String {
 fn create_end() -> String {
   unsafe {
       format!(":endloop{}", VAR_NUM2)
-  }
-}
-
-fn create_ifbegin() -> String {
-  unsafe {
-      VAR_NUM3 += 1;
-      format!(":iftrue{}", VAR_NUM3)
-  }
-}
-
-fn create_ifend() -> String {
-  unsafe {
-      format!(":endif{}", VAR_NUM3)
-  }
-}
-
-fn create_else() -> String {
-  unsafe {
-      format!(":else{}", VAR_NUM3)
   }
 }
 
@@ -957,8 +937,8 @@ fn parse_if(tokens: &Vec<Token>, index: &mut usize, symbol_table: &mut Vec<Strin
         return Err(String::from("If statements must begin with if keyword"));
       }
 
-      let begin1 = create_ifbegin();
-      let end1 = create_ifend();
+      let begin1 = create_beginif();
+      let end1 = create_endif();
       let else1 = create_else();
       let mut code:String= String::from("");
       let expr = parse_bool_expr(tokens, index, symbol_table,func_table, array_table, loop_table)?;
