@@ -552,7 +552,7 @@ fn create_else() -> String {
 fn create_begin() -> String {
   unsafe {
       VAR_NUM2 += 1;
-      format!(":beginningloop{}", VAR_NUM2)
+      format!(":loopbegin{}", VAR_NUM2)
   }
 }
 
