@@ -562,10 +562,6 @@ fn create_end() -> String {
   }
 }
 
-pub fn get_last(loop_table: &Vec<String>) -> Option<&String> {
-  loop_table.last()
-}
-
 
 //check for token but returns none instead of error
 fn peek<'a>(tokens: &'a Vec<Token>, index: usize) -> Option<&'a Token> {
