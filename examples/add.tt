@@ -1,17 +1,12 @@
 # A simple program which adds two numbers together
 # This program should output '150'
-#func add(int a, int b) {
-  #return a;
-#}
 
-func notmain() {
+func main() {
   int a;
   int b;
   int c;
   a = 100;
   b = 50;
   c = a + b;
-  #int[2] array;
-  #array = 4;
   print(c);
 }

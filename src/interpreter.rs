@@ -1528,5 +1528,3 @@ enum Bytecode {
     BranchIf(Op, usize),
     BranchIfn(Op, usize),
 }
-
-
